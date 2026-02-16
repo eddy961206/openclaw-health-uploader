@@ -1,5 +1,6 @@
 package com.openclaw.healthuploader
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -13,8 +14,14 @@ class SupabaseDashboardClient(
     val apiKey = BuildConfig.INGEST_SECRET
     val baseUrl = deriveSupabaseBaseUrl(ingestEndpoint)
 
-    if (baseUrl.isBlank() || apiKey.isBlank()) {
-      throw IllegalStateException("INGEST_ENDPOINT 또는 INGEST_SECRET이 비어 있음")
+    if (ingestEndpoint.isBlank()) {
+      throw IllegalStateException("INGEST_ENDPOINT가 비어 있음")
+    }
+    if (apiKey.isBlank()) {
+      throw IllegalStateException("INGEST_SECRET이 비어 있음")
+    }
+    if (baseUrl.isBlank()) {
+      throw IllegalStateException("INGEST_ENDPOINT 형식이 올바르지 않음")
     }
 
     val url = "$baseUrl/rest/v1/health_daily" +
@@ -45,10 +52,20 @@ class SupabaseDashboardClient(
   }
 
   private fun deriveSupabaseBaseUrl(ingestEndpoint: String): String {
-    // e.g. https://<ref>.functions.supabase.co/ingest-health -> https://<ref>.supabase.co
-    val regex = Regex("^https://([a-z0-9-]+)\\.functions\\.supabase\\.co(?:/.*)?$")
-    val match = regex.find(ingestEndpoint.trim()) ?: return ""
-    val ref = match.groupValues[1]
+    val endpoint = ingestEndpoint.trim()
+    if (endpoint.isBlank()) return ""
+
+    val parsed = endpoint.toHttpUrlOrNull() ?: return ""
+    if (parsed.scheme != "https") return ""
+
+    val host = parsed.host.lowercase()
+    val ref = when {
+      host.endsWith(".functions.supabase.co") -> host.removeSuffix(".functions.supabase.co")
+      host.endsWith(".supabase.co") -> host.removeSuffix(".supabase.co")
+      else -> return ""
+    }
+
+    if (!SUPABASE_REF_REGEX.matches(ref)) return ""
     return "https://$ref.supabase.co"
   }
 
@@ -76,5 +93,9 @@ class SupabaseDashboardClient(
   private fun JSONObject.optNullableDouble(key: String): Double? {
     if (!has(key) || isNull(key)) return null
     return getDouble(key)
+  }
+
+  companion object {
+    private val SUPABASE_REF_REGEX = Regex("^[a-z0-9-]+$")
   }
 }

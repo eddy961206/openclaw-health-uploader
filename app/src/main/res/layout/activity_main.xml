@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
   android:orientation="vertical"
@@ -9,49 +10,114 @@
     android:id="@+id/tvTitle"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="OpenClaw Health Uploader"
+    android:text="OpenClaw Health Dashboard"
     android:textStyle="bold"
-    android:textSize="18sp" />
-
-  <Button
-    android:id="@+id/btnGrant"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="권한 확인/요청" />
-
-  <Button
-    android:id="@+id/btnUpload"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="어제 데이터 업로드" />
-
-  <Button
-    android:id="@+id/btnRefreshDashboard"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="8dp"
-    android:text="대시보드 새로고침" />
+    android:textSize="22sp" />
 
   <TextView
-    android:id="@+id/tvStatus"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="대기 중"
-    android:paddingTop="12dp" />
+    android:layout_marginTop="4dp"
+    android:text="권한 승인 후 최근 3개월 자동 업로드 + 대시보드 조회"
+    android:textColor="#B0B0B0"
+    android:textSize="13sp" />
 
-  <TextView
-    android:id="@+id/tvDashboardState"
+  <com.google.android.material.card.MaterialCardView
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginTop="12dp"
-    android:text="불러오는 중..."
-    android:textSize="14sp" />
+    app:cardCornerRadius="14dp"
+    app:cardUseCompatPadding="true">
 
-  <androidx.recyclerview.widget.RecyclerView
-    android:id="@+id/rvHealthDaily"
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical"
+      android:padding="12dp">
+
+      <Button
+        android:id="@+id/btnGrant"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="권한 확인/요청" />
+
+      <Button
+        android:id="@+id/btnUpload"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="어제 데이터 업로드" />
+
+      <Button
+        android:id="@+id/btnRefreshDashboard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="대시보드 새로고침" />
+
+      <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="10dp"
+        android:visibility="gone" />
+
+      <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="대기 중"
+        android:textSize="14sp" />
+
+    </LinearLayout>
+  </com.google.android.material.card.MaterialCardView>
+
+  <com.google.android.material.card.MaterialCardView
     android:layout_width="match_parent"
     android:layout_height="0dp"
-    android:layout_marginTop="8dp"
-    android:layout_weight="1" />
+    android:layout_marginTop="12dp"
+    android:layout_weight="1"
+    app:cardCornerRadius="14dp"
+    app:cardUseCompatPadding="true">
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:orientation="vertical"
+      android:padding="12dp">
+
+      <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="대시보드 (최근 30일)"
+        android:textStyle="bold"
+        android:textSize="16sp" />
+
+      <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="날짜 | 수면(분) | 걸음수 | 거리(km) | 활동칼로리 | 운동횟수"
+        android:textColor="#B0B0B0"
+        android:textSize="12sp" />
+
+      <TextView
+        android:id="@+id/tvDashboardState"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="불러오는 중..."
+        android:textSize="14sp" />
+
+      <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvHealthDaily"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1" />
+
+    </LinearLayout>
+  </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>

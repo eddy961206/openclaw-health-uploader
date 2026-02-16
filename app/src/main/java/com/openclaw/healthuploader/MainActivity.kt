@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -38,8 +39,13 @@ class MainActivity : AppCompatActivity() {
   private val uiScope = CoroutineScope(Dispatchers.Main)
   private val dashboardAdapter = HealthDailyAdapter()
   private val dashboardClient = SupabaseDashboardClient()
-
   private val permissions = requiredPermissions
+
+  private var isBusy = false
+
+  private val prefs by lazy {
+    getSharedPreferences("health_uploader", MODE_PRIVATE)
+  }
 
   private val requestPermissions = registerForActivityResult(
     PermissionController.createRequestPermissionResultContract()
@@ -47,10 +53,11 @@ class MainActivity : AppCompatActivity() {
     uiScope.launch {
       val ok = granted.containsAll(permissions)
       if (ok) {
-        DailyUploadWorker.schedule(this@MainActivity)
-        updateStatus("권한 완료. 자동 업로드 예약됨(매일 09:05 근처)")
+        updateStatus("권한 허용 완료")
+        onPermissionsReady(triggeredByFirstFlow = true)
       } else {
-        updateStatus("권한 granted: ${granted.size}/${permissions.size}")
+        updateStatus("권한이 일부만 허용됨: ${granted.size}/${permissions.size}")
+        setUiBusy(false)
       }
     }
   }
@@ -64,77 +71,139 @@ class MainActivity : AppCompatActivity() {
     binding.rvHealthDaily.adapter = dashboardAdapter
 
     binding.btnGrant.setOnClickListener {
-      uiScope.launch { ensureHealthConnectAndPermissions() }
+      uiScope.launch {
+        setUiBusy(true)
+        val ok = ensureHealthConnectAndPermissions(autoRequest = true)
+        if (ok) onPermissionsReady(triggeredByFirstFlow = false)
+      }
     }
 
     binding.btnUpload.setOnClickListener {
       uiScope.launch {
-        val ok = ensureHealthConnectAndPermissions()
-        if (!ok) return@launch
-        uploadYesterday()
+        setUiBusy(true)
+        val ok = ensureHealthConnectAndPermissions(autoRequest = true)
+        if (ok) {
+          uploadDay(LocalDate.now(ZoneId.systemDefault()).minusDays(1))
+          refreshDashboard()
+          setUiBusy(false)
+        }
       }
     }
 
     binding.btnRefreshDashboard.setOnClickListener {
-      uiScope.launch { refreshDashboard() }
+      uiScope.launch {
+        setUiBusy(true)
+        refreshDashboard()
+        setUiBusy(false)
+      }
     }
 
     uiScope.launch {
       DailyUploadWorker.schedule(this@MainActivity)
-      updateStatus("앱 준비됨 (자동 업로드: 매일 09:05 근처)")
-      refreshDashboard()
+      updateStatus("시작 중...")
+
+      // 앱 최초 진입 시 자동 권한 흐름
+      setUiBusy(true)
+      val ok = ensureHealthConnectAndPermissions(autoRequest = true)
+      if (ok) {
+        onPermissionsReady(triggeredByFirstFlow = true)
+      }
     }
   }
 
-  private suspend fun updateStatus(msg: String) {
-    binding.tvStatus.text = msg
+  private suspend fun onPermissionsReady(triggeredByFirstFlow: Boolean) {
+    DailyUploadWorker.schedule(this@MainActivity)
+
+    if (triggeredByFirstFlow && !isInitialBackfillDone()) {
+      runInitialBackfillLast90Days()
+    } else {
+      updateStatus("권한 OK. 대시보드 갱신 중...")
+    }
+
+    refreshDashboard()
+    setUiBusy(false)
   }
 
-  private suspend fun ensureHealthConnectAndPermissions(): Boolean {
+  private suspend fun ensureHealthConnectAndPermissions(autoRequest: Boolean): Boolean {
     val status = HealthConnectClient.getSdkStatus(this)
     if (status != HealthConnectClient.SDK_AVAILABLE) {
-      updateStatus("Health Connect가 필요함. 설치 화면으로 이동 중...")
-      try {
-        startActivity(
-          Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse("market://details?id=com.google.android.apps.healthdata")
-          )
-        )
-      } catch (e: ActivityNotFoundException) {
-        startActivity(
-          Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
-          )
-        )
-      }
+      updateStatus("Health Connect 필요. 설치 화면으로 이동")
+      openHealthConnectStorePage()
       return false
     }
 
     val client = HealthConnectClient.getOrCreate(this)
     val granted = client.permissionController.getGrantedPermissions()
     val missing = permissions.subtract(granted)
+
     return if (missing.isEmpty()) {
-      updateStatus("권한 OK")
       true
     } else {
-      updateStatus("권한 요청 중...")
-      requestPermissions.launch(permissions)
+      if (autoRequest) {
+        updateStatus("권한 요청 중...")
+        requestPermissions.launch(permissions)
+      }
       false
     }
   }
 
-  private suspend fun uploadYesterday() {
-    val zone = ZoneId.systemDefault()
-    val day = LocalDate.now(zone).minusDays(1)
+  private fun openHealthConnectStorePage() {
+    try {
+      startActivity(
+        Intent(
+          Intent.ACTION_VIEW,
+          Uri.parse("market://details?id=com.google.android.apps.healthdata")
+        )
+      )
+    } catch (_: ActivityNotFoundException) {
+      startActivity(
+        Intent(
+          Intent.ACTION_VIEW,
+          Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
+        )
+      )
+    }
+  }
 
+  private suspend fun runInitialBackfillLast90Days() {
+    val zone = ZoneId.systemDefault()
+    val total = 90
+    var success = 0
+    var fail = 0
+
+    for (i in 1..total) {
+      val day = LocalDate.now(zone).minusDays(i.toLong())
+      updateStatus("초기 백필 업로드 중... ($i/$total) $day")
+
+      val ok = withContext(Dispatchers.IO) {
+        runCatching {
+          val payload = collectDaily(day)
+          postToSupabase(payload)
+        }.getOrDefault(false)
+      }
+
+      if (ok) success++ else fail++
+    }
+
+    markInitialBackfillDone()
+    updateStatus("초기 백필 완료: 성공 $success / 실패 $fail")
+  }
+
+  private fun isInitialBackfillDone(): Boolean {
+    return prefs.getBoolean(KEY_INITIAL_BACKFILL_V7_DONE, false)
+  }
+
+  private fun markInitialBackfillDone() {
+    prefs.edit().putBoolean(KEY_INITIAL_BACKFILL_V7_DONE, true).apply()
+  }
+
+  private suspend fun uploadDay(day: LocalDate) {
     updateStatus("집계 중: $day")
     val payload = withContext(Dispatchers.IO) { collectDaily(day) }
 
-    updateStatus("업로드 중...")
+    updateStatus("업로드 중: $day")
     val ok = withContext(Dispatchers.IO) { postToSupabase(payload) }
-    updateStatus(if (ok) "업로드 성공: $day" else "업로드 실패 (네트워크/키 확인)")
+    updateStatus(if (ok) "업로드 성공: $day" else "업로드 실패: $day")
   }
 
   private suspend fun refreshDashboard() {
@@ -147,7 +216,7 @@ class MainActivity : AppCompatActivity() {
     result.onSuccess { rows ->
       if (rows.isEmpty()) {
         dashboardAdapter.submit(emptyList())
-        showDashboardState("데이터 없음 (health_daily 0건)")
+        showDashboardState("데이터 없음 (최근 30일 집계 없음)")
       } else {
         dashboardAdapter.submit(rows)
         hideDashboardState()
@@ -158,17 +227,28 @@ class MainActivity : AppCompatActivity() {
     }
   }
 
+  private fun setUiBusy(busy: Boolean) {
+    isBusy = busy
+    binding.btnGrant.isEnabled = !busy
+    binding.btnUpload.isEnabled = !busy
+    binding.btnRefreshDashboard.isEnabled = !busy
+    binding.progressBar.visibility = if (busy) View.VISIBLE else View.GONE
+  }
+
+  private suspend fun updateStatus(msg: String) {
+    binding.tvStatus.text = msg
+  }
+
   private fun showDashboardState(message: String) {
     binding.tvDashboardState.text = message
-    binding.tvDashboardState.visibility = android.view.View.VISIBLE
+    binding.tvDashboardState.visibility = View.VISIBLE
   }
 
   private fun hideDashboardState() {
-    binding.tvDashboardState.visibility = android.view.View.GONE
+    binding.tvDashboardState.visibility = View.GONE
   }
 
   private fun dayWindow(day: LocalDate, zone: ZoneId): Pair<Instant, Instant> {
-    // Use local day boundaries
     val start = day.atStartOfDay(zone).toInstant()
     val end = day.plusDays(1).atStartOfDay(zone).toInstant()
     return start to end
@@ -180,7 +260,6 @@ class MainActivity : AppCompatActivity() {
 
     val (start, end) = dayWindow(day, zone)
 
-    // Sleep: query a wider window to catch overnight sessions
     val sleepStart = day.minusDays(1).atTime(12, 0).atZone(zone).toInstant()
     val sleepEnd = day.plusDays(1).atTime(12, 0).atZone(zone).toInstant()
 
@@ -191,7 +270,6 @@ class MainActivity : AppCompatActivity() {
       )
     ).records
 
-    // Pick the longest session that overlaps the day
     val best = sleepSessions
       .map { r ->
         val ovStart = maxOf(r.startTime, start)
@@ -206,7 +284,6 @@ class MainActivity : AppCompatActivity() {
       ((it.endTime.toEpochMilli() - it.startTime.toEpochMilli()) / 60000).toInt()
     }
 
-    // Aggregates
     val stepsAgg = client.aggregate(
       AggregateRequest(
         metrics = setOf(StepsRecord.COUNT_TOTAL),
@@ -241,23 +318,17 @@ class MainActivity : AppCompatActivity() {
 
     return JSONObject().apply {
       put("day", day.toString())
-
-      // sleep
       put("sleep_start", best?.startTime?.toString())
       put("sleep_end", best?.endTime?.toString())
       put("sleep_duration_minutes", sleepDurationMin)
-
-      // activity
       put("steps", steps)
       put("active_calories", activeCalories)
       put("workouts_count", workouts.size)
       put("distance_km", distanceKm)
-
-      // metadata
       put("source", JSONObject().apply {
         put("tz", zone.id)
         put("collected_at", ZonedDateTime.now(zone).toInstant().toString())
-        put("note", "v0.1 health connect daily aggregates")
+        put("note", "v0.7 auto-permission + backfill + dashboard")
       })
     }
   }
@@ -284,6 +355,8 @@ class MainActivity : AppCompatActivity() {
   }
 
   companion object {
+    private const val KEY_INITIAL_BACKFILL_V7_DONE = "initial_backfill_v7_done"
+
     val requiredPermissions = setOf(
       HealthPermission.getReadPermission(SleepSessionRecord::class),
       HealthPermission.getReadPermission(StepsRecord::class),

@@ -1,31 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
   android:layout_width="match_parent"
   android:layout_height="wrap_content"
-  android:orientation="vertical"
-  android:padding="12dp">
+  android:layout_marginBottom="8dp"
+  app:cardCornerRadius="10dp"
+  app:cardUseCompatPadding="true">
 
-  <TextView
-    android:id="@+id/tvDay"
+  <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="2026-01-01"
-    android:textSize="16sp"
-    android:textStyle="bold" />
+    android:orientation="vertical"
+    android:padding="10dp">
 
-  <TextView
-    android:id="@+id/tvSummary"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="4dp"
-    android:text="걸음 0 | 거리 0.00km | 칼로리 0kcal" />
+    <TextView
+      android:id="@+id/tvDay"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="2026-01-01"
+      android:textStyle="bold"
+      android:textSize="15sp" />
 
-  <TextView
-    android:id="@+id/tvMeta"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="2dp"
-    android:text="운동 0회 | 수면 0분"
-    android:textSize="12sp" />
+    <TextView
+      android:id="@+id/tvSummary"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="4dp"
+      android:text="수면 0분 | 걸음 0 | 거리 0.00km" />
 
-</LinearLayout>
+    <TextView
+      android:id="@+id/tvMeta"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="2dp"
+      android:text="활동칼로리 0kcal | 운동 0회"
+      android:textSize="12sp"
+      android:textColor="#B0B0B0" />
+
+  </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>
