@@ -47,6 +47,28 @@ SUPABASE_ANON_KEY=<supabase anon key>
 ./gradlew assembleRelease
 ```
 
+## 개발 루프 자동화
+### GitHub Actions CI
+- 파일: `.github/workflows/android-ci.yml`
+- push/PR마다 자동 실행:
+  1) debug/release 빌드
+  2) APK 아티팩트 업로드
+  3) 에뮬레이터(API 34)에서 `connectedDebugAndroidTest` 스모크 테스트
+
+### Firebase Test Lab (수동 트리거)
+- 파일: `.github/workflows/firebase-test-lab.yml`
+- `workflow_dispatch`로 실행
+- 필요한 GitHub Secrets:
+  - `GCP_SA_KEY`
+  - `GCP_PROJECT_ID`
+  - (선택) `INGEST_ENDPOINT`, `INGEST_SECRET`, `SUPABASE_ANON_KEY`
+
+### 로컬 원클릭 루프
+```bash
+./scripts/dev_loop.sh
+```
+- 순서: debug 빌드 → 기기/에뮬레이터 스모크 테스트 → release 빌드
+
 APK 출력:
 - `app/build/outputs/apk/debug/app-debug.apk`
 - `app/build/outputs/apk/release/app-release.apk`

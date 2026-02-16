@@ -97,7 +97,12 @@ class MainActivity : AppCompatActivity() {
       }
     }
 
-    uiScope.launch { runInitialFlow() }
+    val skipAutoFlowForTest = intent?.getBooleanExtra(EXTRA_SKIP_AUTO_FLOW, false) == true
+    if (skipAutoFlowForTest) {
+      updateStatus("테스트 모드")
+    } else {
+      uiScope.launch { runInitialFlow() }
+    }
   }
 
   override fun onResume() {
@@ -406,6 +411,7 @@ class MainActivity : AppCompatActivity() {
   companion object {
     private const val PREFS_NAME = "health_uploader_prefs"
     private const val PREF_AUTO_PERMISSION_FLOW_STARTED = "auto_permission_flow_started"
+    const val EXTRA_SKIP_AUTO_FLOW = "skip_auto_flow"
 
     val requiredPermissions = setOf(
       HealthPermission.getReadPermission(SleepSessionRecord::class),

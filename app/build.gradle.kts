@@ -25,6 +25,8 @@ android {
     buildConfigField("String", "INGEST_ENDPOINT", "\"${secrets.getProperty("INGEST_ENDPOINT", "")}\"")
     buildConfigField("String", "INGEST_SECRET", "\"${secrets.getProperty("INGEST_SECRET", "")}\"")
     buildConfigField("String", "SUPABASE_ANON_KEY", "\"${secrets.getProperty("SUPABASE_ANON_KEY", "")}\"")
+
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   buildFeatures {
@@ -71,4 +73,10 @@ dependencies {
 
   // Background scheduling
   implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+  // Instrumentation tests (smoke)
+  androidTestImplementation("androidx.test.ext:junit:1.1.5")
+  androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+  androidTestImplementation("androidx.test:runner:1.5.2")
+  androidTestImplementation("androidx.test:rules:1.5.0")
 }
