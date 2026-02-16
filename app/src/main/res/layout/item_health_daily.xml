@@ -3,40 +3,82 @@
   xmlns:app="http://schemas.android.com/apk/res-auto"
   android:layout_width="match_parent"
   android:layout_height="wrap_content"
-  android:layout_marginBottom="8dp"
-  app:cardCornerRadius="10dp"
-  app:cardUseCompatPadding="true">
+  android:layout_marginBottom="6dp"
+  app:cardBackgroundColor="#FFFFFF"
+  app:cardCornerRadius="12dp"
+  app:cardElevation="0dp"
+  app:strokeColor="#EAECF0"
+  app:strokeWidth="1dp">
 
   <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="10dp">
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="8dp"
+    android:paddingVertical="10dp">
 
     <TextView
       android:id="@+id/tvDay"
-      android:layout_width="match_parent"
+      android:layout_width="0dp"
       android:layout_height="wrap_content"
+      android:layout_weight="1.5"
+      android:ellipsize="end"
+      android:maxLines="1"
       android:text="2026-01-01"
-      android:textStyle="bold"
-      android:textSize="15sp" />
+      android:textColor="#101828"
+      android:textSize="13sp"
+      android:textStyle="bold" />
 
     <TextView
-      android:id="@+id/tvSummary"
-      android:layout_width="match_parent"
+      android:id="@+id/tvSteps"
+      android:layout_width="0dp"
       android:layout_height="wrap_content"
-      android:layout_marginTop="4dp"
-      android:text="수면 0분 | 걸음 0 | 거리 0.00km" />
+      android:layout_weight="1"
+      android:gravity="end"
+      android:text="0"
+      android:textColor="#344054"
+      android:textSize="12sp" />
 
     <TextView
-      android:id="@+id/tvMeta"
-      android:layout_width="match_parent"
+      android:id="@+id/tvDistance"
+      android:layout_width="0dp"
       android:layout_height="wrap_content"
-      android:layout_marginTop="2dp"
-      android:text="활동칼로리 0kcal | 운동 0회"
-      android:textSize="12sp"
-      android:textColor="#B0B0B0" />
+      android:layout_weight="1"
+      android:gravity="end"
+      android:text="0.00"
+      android:textColor="#344054"
+      android:textSize="12sp" />
 
+    <TextView
+      android:id="@+id/tvCalories"
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:gravity="end"
+      android:text="0"
+      android:textColor="#344054"
+      android:textSize="12sp" />
+
+    <TextView
+      android:id="@+id/tvWorkouts"
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="0.8"
+      android:gravity="end"
+      android:text="0"
+      android:textColor="#344054"
+      android:textSize="12sp" />
+
+    <TextView
+      android:id="@+id/tvSleep"
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:gravity="end"
+      android:text="0"
+      android:textColor="#344054"
+      android:textSize="12sp" />
   </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

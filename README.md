@@ -1,60 +1,57 @@
 # OpenClaw Health Uploader (Android)
 
-Health Connect 데이터를 하루 단위로 집계해 Supabase `ingest-health`로 업로드하고,
-앱 안에서 최근 데이터 대시보드를 바로 확인하는 앱.
+Health Connect 데이터를 일(day) 단위로 집계해서 Supabase `ingest-health` Edge Function으로 업로드하는 Android 앱이야.
 
-## v0.7 주요 동작
+## 주요 동작 (v0.7)
+- 앱 **최초 실행 시 자동으로 권한 플로우 시작**.
+- Health Connect가 없으면 Play 스토어 설치 페이지로 이동.
+- 권한이 이미 있으면 바로 다음 단계로 진행.
+- 권한 허용 완료 후 앱으로 돌아오면 **최근 3개월 백필 업로드(90일)** 자동 실행.
+- 백필 범위는 `day-1` ~ `day-90` (오늘 `day-0` 제외).
+- 백필은 WorkManager 체인으로 하루씩 순차 업로드해서, 앱을 백그라운드로 두거나 화면이 꺼져도 계속 진행되도록 구성.
+- 상태 텍스트에 진행률(`n/90`) 및 성공/실패 누적을 표시.
+- 특정 날짜 업로드 실패가 있어도 중단하지 않고 계속 진행.
+- 완료 후 `성공 X일, 실패 Y일` 요약 표시.
+- 기존 WorkManager 자동 업로드(매일 09:05 근처, 전날 데이터)는 유지.
 
-### 1) 앱 첫 실행 시 자동 권한 흐름
-- 앱을 처음 열면 버튼을 누르지 않아도 Health Connect 권한 확인을 자동으로 진행함.
-- Health Connect 앱이 없으면 설치 페이지로 자동 이동.
-- 권한 승인 후 앱으로 돌아오면 다음 단계(초기 백필) 자동 시작.
+## 수동 동작
+- `권한 확인/요청`: Health Connect 설치/권한 상태 확인 및 요청.
+- `어제(day-1) 수동 업로드`: 전날 데이터 즉시 업로드.
+- `대시보드 새로고침`: Supabase `health_daily` 최신 30건 다시 조회.
+- 긴 작업(권한 요청 대기, 백필, 업로드, 새로고침) 중에는 버튼이 비활성화됨.
 
-### 2) 초기 3개월(90일) 자동 백필 업로드
-- 권한 승인 직후, 전날부터 90일 전까지(day-1 ~ day-90) 일괄 업로드.
-- 진행 상태를 화면에 `n/90` 형태로 표시.
-- 일부 날짜 실패해도 계속 진행하고, 마지막에 성공/실패 합계를 표시.
-- 같은 백필은 앱 내부 플래그로 1회 완료 처리됨.
+## 대시보드 조회 방식
+- 대시보드는 Supabase REST를 앱에서 직접 호출하지 않고, `INGEST_ENDPOINT`를 `GET`으로 호출해 조회해.
+- 인증은 동일하게 `x-ingest-secret` 헤더 사용.
+- 따라서 `INGEST_ENDPOINT` 형식이 아래 둘 중 어느 것이어도 동작해:
+  1. `https://<project-ref>.functions.supabase.co/ingest-health`
+  2. `https://<project-ref>.supabase.co/functions/v1/ingest-health`
 
-### 3) 일상 업로드
-- 수동: `어제 데이터 업로드` 버튼
-- 자동: WorkManager로 매일 09:05(로컬 시간) 근처 전날 데이터 업로드 예약
-
-### 4) 앱 내 대시보드 (최근 30건)
-- `대시보드 새로고침` 버튼으로 Supabase `health_daily` 조회
-- 표시 컬럼:
-  - 날짜
-  - 수면(분)
-  - 걸음수
-  - 거리(km)
-  - 활동칼로리
-  - 운동횟수
-- 로딩/비어있음/오류 상태 메시지 표시
-
-## 현재 수집 항목
+## 수집 항목
 - 수면: `sleep_start`, `sleep_end`, `sleep_duration_minutes`
 - 활동: `steps`, `distance_km`, `active_calories`, `workouts_count`
 
 ## 빌드 전 준비
-`secrets.properties` (git 미추적)
+루트에 `secrets.properties` (git 미추적) 파일이 필요해:
 
 ```properties
-INGEST_ENDPOINT=https://<project-ref>.supabase.co/functions/v1/ingest-health
-# 또는 https://<project-ref>.functions.supabase.co/ingest-health
+INGEST_ENDPOINT=https://<project-ref>.functions.supabase.co/ingest-health
 INGEST_SECRET=<x-ingest-secret>
 ```
 
 ## 빌드
 ```bash
 ./gradlew assembleDebug
-./gradlew assembleRelease -x lint -x lintVitalRelease
+./gradlew assembleRelease
 ```
 
-## 출력 APK
-- debug: `app/build/outputs/apk/debug/app-debug.apk`
-- release: `app/build/outputs/apk/release/app-release.apk`
+APK 출력:
+- `app/build/outputs/apk/debug/app-debug.apk`
+- `app/build/outputs/apk/release/app-release.apk`
 
-## 주의사항
-- Health Connect에 실제 데이터가 있어야 업로드됨.
-- 기기 절전/배터리 최적화 정책에 따라 자동 작업 시점은 지연될 수 있음.
-- 권한이 해제되면 자동 업로드/조회가 정상 동작하지 않을 수 있음.
+## 알려진 제약
+- Health Connect에 실제 데이터가 있어야 해당 날짜 값이 채워져.
+- 백필은 최초 권한 완료 후 1회 수행되고, 실패한 날짜가 있어도 자동 재시도는 하지 않아.
+- 자동 작업은 배터리 최적화/절전 정책에 따라 지연될 수 있어.
+- 권한이 제거되면 자동 업로드는 skip되고, 앱에서 다시 권한 요청이 필요해.
+- 시크릿 값(`INGEST_SECRET`)은 로그/화면에 출력하지 않아.

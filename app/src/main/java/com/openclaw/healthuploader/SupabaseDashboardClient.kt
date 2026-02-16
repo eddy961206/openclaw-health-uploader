@@ -1,6 +1,5 @@
 package com.openclaw.healthuploader
 
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -10,74 +9,100 @@ class SupabaseDashboardClient(
   private val httpClient: OkHttpClient = OkHttpClient(),
 ) {
   fun fetchLatest30(): List<HealthDailyRow> {
-    val ingestEndpoint = BuildConfig.INGEST_ENDPOINT
-    val apiKey = BuildConfig.INGEST_SECRET
+    val ingestEndpoint = BuildConfig.INGEST_ENDPOINT.trim()
+    val secret = BuildConfig.INGEST_SECRET.trim()
+
+    if (ingestEndpoint.isBlank()) throw IllegalStateException("INGEST_ENDPOINT 누락")
+
+    // 1) Try function GET first (new backend path)
+    if (secret.isNotBlank()) {
+      val byFunction = runCatching { fetchViaFunction(ingestEndpoint, secret) }.getOrNull()
+      if (byFunction != null) return byFunction
+    }
+
+    // 2) Fallback to direct REST using anon key (for old backend path)
+    val anon = BuildConfig.SUPABASE_ANON_KEY.trim()
+    if (anon.isBlank()) {
+      throw IllegalStateException("대시보드 인증 실패: SUPABASE_ANON_KEY 필요")
+    }
+
     val baseUrl = deriveSupabaseBaseUrl(ingestEndpoint)
+    if (baseUrl.isBlank()) throw IllegalStateException("Supabase URL 파싱 실패")
 
-    if (ingestEndpoint.isBlank()) {
-      throw IllegalStateException("INGEST_ENDPOINT가 비어 있음")
-    }
-    if (apiKey.isBlank()) {
-      throw IllegalStateException("INGEST_SECRET이 비어 있음")
-    }
-    if (baseUrl.isBlank()) {
-      throw IllegalStateException("INGEST_ENDPOINT 형식이 올바르지 않음")
-    }
+    return fetchViaRest(baseUrl, anon)
+  }
 
+  private fun fetchViaFunction(endpoint: String, secret: String): List<HealthDailyRow> {
+    val request = Request.Builder()
+      .url(endpoint)
+      .addHeader("x-ingest-secret", secret)
+      .addHeader("Accept", "application/json")
+      .get()
+      .build()
+
+    httpClient.newCall(request).execute().use { response ->
+      if (!response.isSuccessful) throw IllegalStateException("function HTTP ${response.code}")
+      val raw = response.body?.string().orEmpty()
+      val rows = JSONObject(raw).optJSONArray("rows") ?: JSONArray()
+      return parseRows(rows)
+    }
+  }
+
+  private fun fetchViaRest(baseUrl: String, anonKey: String): List<HealthDailyRow> {
     val url = "$baseUrl/rest/v1/health_daily" +
       "?select=day,steps,distance_km,active_calories,workouts_count,sleep_duration_minutes" +
       "&order=day.desc&limit=30"
 
     val request = Request.Builder()
       .url(url)
-      .addHeader("apikey", apiKey)
-      .addHeader("Authorization", "Bearer $apiKey")
+      .addHeader("apikey", anonKey)
+      .addHeader("Authorization", "Bearer $anonKey")
       .addHeader("Accept", "application/json")
+      .get()
       .build()
 
     httpClient.newCall(request).execute().use { response ->
       if (!response.isSuccessful) {
         throw IllegalStateException("대시보드 조회 실패: HTTP ${response.code}")
       }
+      val rows = JSONArray(response.body?.string().orEmpty())
+      return parseRows(rows)
+    }
+  }
 
-      val raw = response.body?.string().orEmpty()
-      val array = JSONArray(raw)
-      return buildList {
-        for (i in 0 until array.length()) {
-          val row = array.getJSONObject(i)
-          add(row.toHealthDailyRow())
-        }
-      }
+  private fun parseRows(rows: JSONArray): List<HealthDailyRow> = buildList {
+    for (i in 0 until rows.length()) {
+      val row = rows.getJSONObject(i)
+      add(
+        HealthDailyRow(
+          day = row.optString("day", "-"),
+          steps = row.optNullableLong("steps"),
+          distanceKm = row.optNullableDouble("distance_km"),
+          activeCalories = row.optNullableDouble("active_calories"),
+          workoutsCount = row.optNullableInt("workouts_count"),
+          sleepDurationMinutes = row.optNullableInt("sleep_duration_minutes"),
+        )
+      )
     }
   }
 
   private fun deriveSupabaseBaseUrl(ingestEndpoint: String): String {
-    val endpoint = ingestEndpoint.trim()
+    val endpoint = ingestEndpoint.trim().trimEnd('/')
     if (endpoint.isBlank()) return ""
 
-    val parsed = endpoint.toHttpUrlOrNull() ?: return ""
-    if (parsed.scheme != "https") return ""
+    Regex("^https://([a-z0-9-]+)\\.functions\\.supabase\\.co(?:/.*)?$")
+      .find(endpoint)
+      ?.groupValues
+      ?.getOrNull(1)
+      ?.let { return "https://$it.supabase.co" }
 
-    val host = parsed.host.lowercase()
-    val ref = when {
-      host.endsWith(".functions.supabase.co") -> host.removeSuffix(".functions.supabase.co")
-      host.endsWith(".supabase.co") -> host.removeSuffix(".supabase.co")
-      else -> return ""
-    }
+    Regex("^https://([a-z0-9-]+)\\.supabase\\.co(?:/.*)?$")
+      .find(endpoint)
+      ?.groupValues
+      ?.getOrNull(1)
+      ?.let { return "https://$it.supabase.co" }
 
-    if (!SUPABASE_REF_REGEX.matches(ref)) return ""
-    return "https://$ref.supabase.co"
-  }
-
-  private fun JSONObject.toHealthDailyRow(): HealthDailyRow {
-    return HealthDailyRow(
-      day = optString("day", "-"),
-      steps = optNullableLong("steps"),
-      distanceKm = optNullableDouble("distance_km"),
-      activeCalories = optNullableDouble("active_calories"),
-      workoutsCount = optNullableInt("workouts_count"),
-      sleepDurationMinutes = optNullableInt("sleep_duration_minutes"),
-    )
+    return ""
   }
 
   private fun JSONObject.optNullableLong(key: String): Long? {
@@ -93,9 +118,5 @@ class SupabaseDashboardClient(
   private fun JSONObject.optNullableDouble(key: String): Double? {
     if (!has(key) || isNull(key)) return null
     return getDouble(key)
-  }
-
-  companion object {
-    private val SUPABASE_REF_REGEX = Regex("^[a-z0-9-]+$")
   }
 }

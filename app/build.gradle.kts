@@ -24,6 +24,7 @@ android {
     // Inject ingest endpoint + secret at build time (kept in secrets.properties)
     buildConfigField("String", "INGEST_ENDPOINT", "\"${secrets.getProperty("INGEST_ENDPOINT", "")}\"")
     buildConfigField("String", "INGEST_SECRET", "\"${secrets.getProperty("INGEST_SECRET", "")}\"")
+    buildConfigField("String", "SUPABASE_ANON_KEY", "\"${secrets.getProperty("SUPABASE_ANON_KEY", "")}\"")
   }
 
   buildFeatures {

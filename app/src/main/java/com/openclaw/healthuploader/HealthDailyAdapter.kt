@@ -5,7 +5,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import java.text.NumberFormat
 import java.util.Locale
 
 class HealthDailyAdapter : RecyclerView.Adapter<HealthDailyAdapter.HealthDailyViewHolder>() {
@@ -31,22 +30,19 @@ class HealthDailyAdapter : RecyclerView.Adapter<HealthDailyAdapter.HealthDailyVi
 
   class HealthDailyViewHolder(view: View) : RecyclerView.ViewHolder(view) {
     private val tvDay: TextView = view.findViewById(R.id.tvDay)
-    private val tvSummary: TextView = view.findViewById(R.id.tvSummary)
-    private val tvMeta: TextView = view.findViewById(R.id.tvMeta)
+    private val tvSteps: TextView = view.findViewById(R.id.tvSteps)
+    private val tvDistance: TextView = view.findViewById(R.id.tvDistance)
+    private val tvCalories: TextView = view.findViewById(R.id.tvCalories)
+    private val tvWorkouts: TextView = view.findViewById(R.id.tvWorkouts)
+    private val tvSleep: TextView = view.findViewById(R.id.tvSleep)
 
     fun bind(row: HealthDailyRow) {
-      tvDay.text = "날짜: ${row.day}"
-
-      val intFmt = NumberFormat.getIntegerInstance(Locale.KOREA)
-
-      val sleep = row.sleepDurationMinutes?.let { "${intFmt.format(it)}분" } ?: "-"
-      val steps = row.steps?.let { intFmt.format(it) } ?: "-"
-      val distance = row.distanceKm?.let { String.format(Locale.US, "%.2f", it) } ?: "-"
-      val calories = row.activeCalories?.let { intFmt.format(it.toInt()) } ?: "-"
-      val workouts = row.workoutsCount?.let { intFmt.format(it) } ?: "-"
-
-      tvSummary.text = "수면 $sleep | 걸음 $steps | 거리 ${distance}km"
-      tvMeta.text = "활동칼로리 ${calories}kcal | 운동 ${workouts}회"
+      tvDay.text = row.day
+      tvSteps.text = row.steps?.toString() ?: "-"
+      tvDistance.text = row.distanceKm?.let { String.format(Locale.US, "%.2f", it) } ?: "-"
+      tvCalories.text = row.activeCalories?.let { String.format(Locale.US, "%.0f", it) } ?: "-"
+      tvWorkouts.text = row.workoutsCount?.toString() ?: "-"
+      tvSleep.text = row.sleepDurationMinutes?.toString() ?: "-"
     }
   }
 }
