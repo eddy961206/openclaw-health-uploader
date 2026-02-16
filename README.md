@@ -16,6 +16,14 @@ Health Connect 데이터를 하루 단위로 집계해서 Supabase `ingest-healt
 ## 수동 업로드
 - 앱에서 `어제 데이터 업로드` 버튼으로 즉시 업로드 가능.
 
+## 앱 내 대시보드 (v0.6)
+- 메인 화면에서 `대시보드 새로고침` 버튼으로 Supabase `health_daily` 최신 30건 조회.
+- 별도 키 없이 기존 `INGEST_ENDPOINT` + `INGEST_SECRET` 값을 재사용해 조회.
+- 조회 중에는 `불러오는 중` 텍스트가 표시됨.
+- 데이터가 없으면 `데이터 없음` 텍스트가 표시됨.
+- 네트워크/키/권한 문제면 `대시보드 오류` 텍스트가 표시됨.
+- 목록에는 `day`, `steps`, `distance_km`, `active_calories`, `workouts_count`, `sleep_duration_minutes`를 표시.
+
 ## 빌드 전 준비
 `secrets.properties` (git 미추적) 파일 필요:
 

@@ -2,8 +2,8 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
-  android:padding="16dp"
-  android:orientation="vertical">
+  android:orientation="vertical"
+  android:padding="16dp">
 
   <TextView
     android:id="@+id/tvTitle"
@@ -25,11 +25,33 @@
     android:layout_height="wrap_content"
     android:text="어제 데이터 업로드" />
 
+  <Button
+    android:id="@+id/btnRefreshDashboard"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:text="대시보드 새로고침" />
+
   <TextView
     android:id="@+id/tvStatus"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:text="대기 중"
     android:paddingTop="12dp" />
+
+  <TextView
+    android:id="@+id/tvDashboardState"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="12dp"
+    android:text="불러오는 중..."
+    android:textSize="14sp" />
+
+  <androidx.recyclerview.widget.RecyclerView
+    android:id="@+id/rvHealthDaily"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_marginTop="8dp"
+    android:layout_weight="1" />
 
 </LinearLayout>

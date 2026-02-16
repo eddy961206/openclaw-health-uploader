@@ -15,6 +15,8 @@ import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.openclaw.healthuploader.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +36,8 @@ class MainActivity : AppCompatActivity() {
 
   private lateinit var binding: ActivityMainBinding
   private val uiScope = CoroutineScope(Dispatchers.Main)
+  private val dashboardAdapter = HealthDailyAdapter()
+  private val dashboardClient = SupabaseDashboardClient()
 
   private val permissions = requiredPermissions
 
@@ -56,6 +60,9 @@ class MainActivity : AppCompatActivity() {
     binding = ActivityMainBinding.inflate(layoutInflater)
     setContentView(binding.root)
 
+    binding.rvHealthDaily.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
+    binding.rvHealthDaily.adapter = dashboardAdapter
+
     binding.btnGrant.setOnClickListener {
       uiScope.launch { ensureHealthConnectAndPermissions() }
     }
@@ -68,9 +75,14 @@ class MainActivity : AppCompatActivity() {
       }
     }
 
+    binding.btnRefreshDashboard.setOnClickListener {
+      uiScope.launch { refreshDashboard() }
+    }
+
     uiScope.launch {
       DailyUploadWorker.schedule(this@MainActivity)
       updateStatus("앱 준비됨 (자동 업로드: 매일 09:05 근처)")
+      refreshDashboard()
     }
   }
 
@@ -123,6 +135,36 @@ class MainActivity : AppCompatActivity() {
     updateStatus("업로드 중...")
     val ok = withContext(Dispatchers.IO) { postToSupabase(payload) }
     updateStatus(if (ok) "업로드 성공: $day" else "업로드 실패 (네트워크/키 확인)")
+  }
+
+  private suspend fun refreshDashboard() {
+    showDashboardState("대시보드 불러오는 중...")
+
+    val result = withContext(Dispatchers.IO) {
+      runCatching { dashboardClient.fetchLatest30() }
+    }
+
+    result.onSuccess { rows ->
+      if (rows.isEmpty()) {
+        dashboardAdapter.submit(emptyList())
+        showDashboardState("데이터 없음 (health_daily 0건)")
+      } else {
+        dashboardAdapter.submit(rows)
+        hideDashboardState()
+      }
+    }.onFailure { e ->
+      dashboardAdapter.submit(emptyList())
+      showDashboardState("대시보드 오류: ${e.message ?: "알 수 없는 오류"}")
+    }
+  }
+
+  private fun showDashboardState(message: String) {
+    binding.tvDashboardState.text = message
+    binding.tvDashboardState.visibility = android.view.View.VISIBLE
+  }
+
+  private fun hideDashboardState() {
+    binding.tvDashboardState.visibility = android.view.View.GONE
   }
 
   private fun dayWindow(day: LocalDate, zone: ZoneId): Pair<Instant, Instant> {
