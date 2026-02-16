@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:padding="16dp"
+  android:orientation="vertical">
+
+  <TextView
+    android:id="@+id/tvTitle"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="OpenClaw Health Uploader"
+    android:textStyle="bold"
+    android:textSize="18sp" />
+
+  <Button
+    android:id="@+id/btnGrant"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="권한 확인/요청" />
+
+  <Button
+    android:id="@+id/btnUpload"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="어제 데이터 업로드" />
+
+  <TextView
+    android:id="@+id/tvStatus"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="대기 중"
+    android:paddingTop="12dp" />
+
+</LinearLayout>
