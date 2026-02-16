@@ -21,9 +21,10 @@ Health Connect 데이터를 일(day) 단위로 집계해서 Supabase `ingest-hea
 - 긴 작업(권한 요청 대기, 백필, 업로드, 새로고침) 중에는 버튼이 비활성화됨.
 
 ## 대시보드 조회 방식
-- 대시보드는 Supabase REST를 앱에서 직접 호출하지 않고, `INGEST_ENDPOINT`를 `GET`으로 호출해 조회해.
-- 인증은 동일하게 `x-ingest-secret` 헤더 사용.
-- 따라서 `INGEST_ENDPOINT` 형식이 아래 둘 중 어느 것이어도 동작해:
+- 1차: `INGEST_ENDPOINT`를 `GET`으로 호출 (`x-ingest-secret` 인증)
+- 2차(401/실패 시): Supabase REST 직접 조회 (`SUPABASE_ANON_KEY` 사용)
+- 따라서 함수 배포 지연/권한 이슈가 있어도 fallback으로 조회 가능.
+- `INGEST_ENDPOINT` 형식은 아래 둘 다 지원:
   1. `https://<project-ref>.functions.supabase.co/ingest-health`
   2. `https://<project-ref>.supabase.co/functions/v1/ingest-health`
 
@@ -37,6 +38,7 @@ Health Connect 데이터를 일(day) 단위로 집계해서 Supabase `ingest-hea
 ```properties
 INGEST_ENDPOINT=https://<project-ref>.functions.supabase.co/ingest-health
 INGEST_SECRET=<x-ingest-secret>
+SUPABASE_ANON_KEY=<supabase anon key>
 ```
 
 ## 빌드
