@@ -42,6 +42,17 @@ jobs:
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
 
+      - name: Send release APK to Discord webhook
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
+          MSG="자동 빌드 완료: ${GITHUB_REPOSITORY} #${GITHUB_RUN_NUMBER} (${GITHUB_SHA::7})"
+          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
+            -F "payload_json={\"content\":\"$MSG\"}" \
+            -F "file1=@${APK}"
+
   emulator-smoke:
     runs-on: macos-latest
     timeout-minutes: 30

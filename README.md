@@ -54,6 +54,7 @@ SUPABASE_ANON_KEY=<supabase anon key>
   1) debug/release 빌드
   2) APK 아티팩트 업로드
   3) 에뮬레이터(API 34)에서 `connectedDebugAndroidTest` 스모크 테스트
+- `main` push 시, `DISCORD_WEBHOOK_URL` 시크릿이 있으면 **release APK를 디스코드 웹훅으로 자동 전송**
 
 ### Firebase Test Lab (수동 트리거)
 - 파일: `.github/workflows/firebase-test-lab.yml`
@@ -62,6 +63,7 @@ SUPABASE_ANON_KEY=<supabase anon key>
   - `GCP_SA_KEY`
   - `GCP_PROJECT_ID`
   - (선택) `INGEST_ENDPOINT`, `INGEST_SECRET`, `SUPABASE_ANON_KEY`
+  - 배포 자동화용: `DISCORD_WEBHOOK_URL`
 
 ### 로컬 원클릭 루프
 ```bash
