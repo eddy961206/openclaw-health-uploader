@@ -35,18 +35,20 @@ class MainActivity : AppCompatActivity() {
   private lateinit var binding: ActivityMainBinding
   private val uiScope = CoroutineScope(Dispatchers.Main)
 
-  private val permissions = setOf(
-    HealthPermission.getReadPermission(SleepSessionRecord::class),
-    HealthPermission.getReadPermission(StepsRecord::class),
-    HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-    HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
-    HealthPermission.getReadPermission(DistanceRecord::class),
-  )
+  private val permissions = requiredPermissions
 
   private val requestPermissions = registerForActivityResult(
     PermissionController.createRequestPermissionResultContract()
   ) { granted ->
-    uiScope.launch { updateStatus("권한 granted: ${granted.size}/${permissions.size}") }
+    uiScope.launch {
+      val ok = granted.containsAll(permissions)
+      if (ok) {
+        DailyUploadWorker.schedule(this@MainActivity)
+        updateStatus("권한 완료. 자동 업로드 예약됨(매일 09:05 근처)")
+      } else {
+        updateStatus("권한 granted: ${granted.size}/${permissions.size}")
+      }
+    }
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +68,10 @@ class MainActivity : AppCompatActivity() {
       }
     }
 
-    uiScope.launch { updateStatus("앱 준비됨") }
+    uiScope.launch {
+      DailyUploadWorker.schedule(this@MainActivity)
+      updateStatus("앱 준비됨 (자동 업로드: 매일 09:05 근처)")
+    }
   }
 
   private suspend fun updateStatus(msg: String) {
@@ -234,5 +239,15 @@ class MainActivity : AppCompatActivity() {
     client.newCall(req).execute().use { resp ->
       return resp.isSuccessful
     }
+  }
+
+  companion object {
+    val requiredPermissions = setOf(
+      HealthPermission.getReadPermission(SleepSessionRecord::class),
+      HealthPermission.getReadPermission(StepsRecord::class),
+      HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+      HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+      HealthPermission.getReadPermission(DistanceRecord::class),
+    )
   }
 }
