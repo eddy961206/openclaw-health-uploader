@@ -18,8 +18,8 @@ android {
     applicationId = "com.openclaw.healthuploader"
     minSdk = 26
     targetSdk = 34
-    versionCode = 1
-    versionName = "0.1"
+    versionCode = 2
+    versionName = "0.2"
 
     // Inject ingest endpoint + secret at build time (kept in secrets.properties)
     buildConfigField("String", "INGEST_ENDPOINT", "\"${secrets.getProperty("INGEST_ENDPOINT", "")}\"")
