@@ -5,6 +5,7 @@ Health Connect 데이터를 일(day) 단위로 집계해서 Supabase `ingest-hea
 이 프로젝트는 이제 **수면(sleep) 중심**으로 피벗했어:
 - 앱 첫 화면에서 **수면 요약 카드**를 가장 먼저 보여줘 (총 수면, 수면 구간, 단계 분해, 간단 인사이트)
 - 걸음/활동은 **2순위(부가 정보)**로 아래쪽에 작게 보여줘
+- 화면 하단에 **바텀 네비게이션(대시보드/트렌드/설정)**을 둬서, 수면을 중심으로 보되 필요한 관리 기능은 설정 탭으로 분리했어.
 
 ## 주요 동작 (v0.9)
 - 앱 **최초 실행 시 자동으로 권한 플로우 시작**.
@@ -19,10 +20,13 @@ Health Connect 데이터를 일(day) 단위로 집계해서 Supabase `ingest-hea
 - 기존 WorkManager 자동 업로드(매일 09:05 근처, 전날 데이터)는 유지.
 
 ## 수동 동작
-- `권한 확인/요청`: Health Connect 설치/권한 상태 확인 및 요청.
-- `어제(day-1) 수동 업로드`: 전날 데이터 즉시 업로드.
-- `대시보드 새로고침`: Supabase `health_daily` 최신 30건 다시 조회.
-- 긴 작업(권한 요청 대기, 백필, 업로드, 새로고침) 중에는 버튼이 비활성화됨.
+- **대시보드 탭**
+  - 상단 `동기화` 버튼: Supabase `health_daily` 최신 30건 다시 조회 + 로컬(어제) 수면/활동 요약 갱신
+- **설정 탭**
+  - `권한 확인/요청`: Health Connect 설치/권한 상태 확인 및 요청
+  - `대시보드 동기화`: 대시보드 탭과 동일하게 동기화 실행
+  - `어제(day-1) 수동 업로드`: 전날 데이터 즉시 업로드
+- 긴 작업(권한 요청 대기, 백필, 업로드, 새로고침) 중에는 버튼/동기화가 비활성화돼.
 
 ## 대시보드 조회 방식
 - 1차: `INGEST_ENDPOINT`를 `GET`으로 호출 (`x-ingest-secret` 인증)
@@ -72,6 +76,11 @@ SEND_SLEEP_V2_FIELDS=false
 ./gradlew assembleDebug
 ./gradlew assembleRelease
 ```
+
+## UI (Material 3)
+- 테마: `Theme.Material3.DayNight.NoActionBar`
+- Android 12+에서 지원되면 **Dynamic Color**(Material You)를 자동 적용해.
+- 대시보드는 수면을 가장 위에 큰 카드로, 활동은 아래에 컴팩트 카드로 보여줘.
 
 ## 개발 루프 자동화
 ### GitHub Actions CI

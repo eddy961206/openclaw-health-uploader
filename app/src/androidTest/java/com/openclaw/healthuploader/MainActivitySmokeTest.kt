@@ -23,11 +23,10 @@ class MainActivitySmokeTest {
     }
 
     ActivityScenario.launch<MainActivity>(intent).use {
-      onView(withId(R.id.tvTitle)).check(matches(isDisplayed()))
-      onView(withId(R.id.btnGrant)).check(matches(isDisplayed()))
-      onView(withId(R.id.btnUpload)).check(matches(isDisplayed()))
-      onView(withId(R.id.btnRefreshDashboard)).check(matches(isDisplayed()))
-      onView(withId(R.id.rvHealthDaily)).check(matches(isDisplayed()))
+      onView(withId(R.id.topAppBar)).check(matches(isDisplayed()))
+      onView(withId(R.id.bottomNav)).check(matches(isDisplayed()))
+      onView(withId(R.id.tvHeroTotal)).check(matches(isDisplayed()))
+      onView(withId(R.id.rvRecent)).check(matches(isDisplayed()))
     }
   }
 }

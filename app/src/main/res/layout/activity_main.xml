@@ -1,202 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
   xmlns:app="http://schemas.android.com/apk/res-auto"
+  android:id="@+id/root"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
-  android:background="#F3F4F6"
-  android:orientation="vertical"
-  android:padding="16dp">
+  android:background="?attr/colorSurface"
+  android:orientation="vertical">
 
-  <TextView
-    android:id="@+id/tvTitle"
+  <com.google.android.material.appbar.MaterialToolbar
+    android:id="@+id/topAppBar"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="수면 대시보드"
-    android:textColor="#101828"
-    android:textSize="24sp"
-    android:textStyle="bold" />
+    android:background="?attr/colorSurface"
+    app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
 
-  <TextView
-    android:id="@+id/tvSubtitle"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="4dp"
-    android:text="Health Connect 수면 중심 집계 + Supabase 업로드"
-    android:textColor="#475467"
-    android:textSize="13sp" />
-
-  <com.google.android.material.card.MaterialCardView
-    android:id="@+id/cardSleepSummary"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="12dp"
-    app:cardBackgroundColor="#FFFFFF"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="0dp"
-    app:strokeColor="#E4E7EC"
-    app:strokeWidth="1dp">
-
-    <LinearLayout
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:orientation="vertical"
-      android:padding="14dp">
-
-      <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="수면 요약 (어제)"
-        android:textColor="#101828"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-
-      <TextView
-        android:id="@+id/tvSleepSummaryTotal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="총 수면: -"
-        android:textColor="#101828"
-        android:textSize="18sp"
-        android:textStyle="bold" />
-
-      <TextView
-        android:id="@+id/tvSleepSummaryWindow"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="수면 구간: -"
-        android:textColor="#475467"
-        android:textSize="13sp" />
-
-      <TextView
-        android:id="@+id/tvSleepSummaryStages"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="수면 단계: -"
-        android:textColor="#344054"
-        android:textSize="13sp" />
-
-      <TextView
-        android:id="@+id/tvSleepSummaryInsight"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="인사이트: -"
-        android:textColor="#667085"
-        android:textSize="12sp" />
-    </LinearLayout>
-  </com.google.android.material.card.MaterialCardView>
-
-  <com.google.android.material.card.MaterialCardView
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="12dp"
-    app:cardBackgroundColor="#FFFFFF"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="0dp"
-    app:strokeColor="#E4E7EC"
-    app:strokeWidth="1dp">
-
-    <LinearLayout
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:orientation="vertical"
-      android:padding="14dp">
-
-      <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="권한 및 동기화"
-        android:textColor="#101828"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-
-      <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="대기 중"
-        android:textColor="#344054"
-        android:textSize="13sp" />
-
-      <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnGrant"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="권한 확인/요청" />
-
-      <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnUpload"
-        style="@style/Widget.MaterialComponents.Button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="어제(day-1) 수동 업로드" />
-
-      <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnRefreshDashboard"
-        style="@style/Widget.MaterialComponents.Button.TextButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="대시보드 새로고침" />
-    </LinearLayout>
-  </com.google.android.material.card.MaterialCardView>
-
-  <com.google.android.material.card.MaterialCardView
+  <androidx.fragment.app.FragmentContainerView
+    android:id="@+id/fragmentContainer"
     android:layout_width="match_parent"
     android:layout_height="0dp"
-    android:layout_marginTop="12dp"
-    android:layout_weight="1"
-    app:cardBackgroundColor="#FFFFFF"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="0dp"
-    app:strokeColor="#E4E7EC"
-    app:strokeWidth="1dp">
+    android:layout_weight="1" />
 
-    <LinearLayout
-      android:layout_width="match_parent"
-      android:layout_height="match_parent"
-      android:orientation="vertical"
-      android:padding="12dp">
-
-      <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="업로드 대시보드 (최신 30일)"
-        android:textColor="#101828"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-
-      <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="수면이 먼저 보이도록 정리했고, 활동(걸음/칼로리/운동)은 아래에 작게 보여줘."
-        android:textColor="#475467"
-        android:textSize="12sp" />
-
-      <TextView
-        android:id="@+id/tvDashboardState"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="불러오는 중..."
-        android:textColor="#475467"
-        android:textSize="13sp" />
-
-      <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvHealthDaily"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:layout_weight="1" />
-    </LinearLayout>
-  </com.google.android.material.card.MaterialCardView>
+  <com.google.android.material.bottomnavigation.BottomNavigationView
+    android:id="@+id/bottomNav"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurface"
+    app:labelVisibilityMode="labeled"
+    app:menu="@menu/menu_bottom_nav" />
 
 </LinearLayout>

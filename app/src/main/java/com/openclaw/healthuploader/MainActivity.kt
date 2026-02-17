@@ -6,6 +6,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
@@ -17,9 +19,11 @@ import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.openclaw.healthuploader.databinding.ActivityMainBinding
+import com.openclaw.healthuploader.ui.DashboardFragment
+import com.openclaw.healthuploader.ui.SettingsFragment
+import com.openclaw.healthuploader.ui.TrendsFragment
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -39,7 +43,7 @@ class MainActivity : AppCompatActivity() {
 
   private lateinit var binding: ActivityMainBinding
   private val uiScope = CoroutineScope(Dispatchers.Main)
-  private val dashboardAdapter = HealthDailyAdapter()
+  private lateinit var vm: MainViewModel
   private val dashboardClient = SupabaseDashboardClient()
   private val prefs by lazy { getSharedPreferences(PREFS_NAME, MODE_PRIVATE) }
 
@@ -49,12 +53,16 @@ class MainActivity : AppCompatActivity() {
   private var permissionRequestInFlight = false
   private var pendingHealthConnectInstallCheck = false
 
+  private enum class Tab { DASHBOARD, TRENDS, SETTINGS }
+  private var currentTab: Tab = Tab.DASHBOARD
+
   private val requestPermissions = registerForActivityResult(
     PermissionController.createRequestPermissionResultContract()
   ) { granted ->
     uiScope.launch {
       permissionRequestInFlight = false
       updateActionButtonsState()
+      runCatching { updateHealthConnectUi() }
 
       val ok = granted.containsAll(permissions)
       if (ok) {
@@ -70,35 +78,19 @@ class MainActivity : AppCompatActivity() {
     binding = ActivityMainBinding.inflate(layoutInflater)
     setContentView(binding.root)
 
-    binding.rvHealthDaily.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
-    binding.rvHealthDaily.adapter = dashboardAdapter
+    vm = ViewModelProvider(this)[MainViewModel::class.java]
+    setSupportActionBar(binding.topAppBar)
+
     renderSleepSummaryLoading("대기 중...")
+    setupBottomNav(savedInstanceState)
 
-    binding.btnGrant.setOnClickListener {
-      uiScope.launch {
-        withBusyTask {
-          val granted = ensureHealthConnectAndPermissions(autoFlow = false, openInstallIfMissing = true)
-          if (granted) onPermissionsReady()
-        }
-      }
+    vm.snackbarEvent.observe(this) { e ->
+      val msg = e?.getContentIfNotHandled() ?: return@observe
+      Snackbar.make(binding.root, msg, Snackbar.LENGTH_LONG).show()
     }
 
-    binding.btnUpload.setOnClickListener {
-      uiScope.launch {
-        withBusyTask {
-          val granted = ensureHealthConnectAndPermissions(autoFlow = false, openInstallIfMissing = true)
-          if (!granted) return@withBusyTask
-
-          val day = LocalDate.now(ZoneId.systemDefault()).minusDays(1)
-          uploadSingleDay(day, "수동 업로드")
-        }
-      }
-    }
-
-    binding.btnRefreshDashboard.setOnClickListener {
-      uiScope.launch {
-        withBusyTask { refreshDashboard() }
-      }
+    uiScope.launch {
+      runCatching { updateHealthConnectUi() }
     }
 
     val skipAutoFlowForTest = intent?.getBooleanExtra(EXTRA_SKIP_AUTO_FLOW, false) == true
@@ -125,6 +117,28 @@ class MainActivity : AppCompatActivity() {
     }
   }
 
+  override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
+    menuInflater.inflate(R.menu.menu_dashboard_top_app_bar, menu)
+    return true
+  }
+
+  override fun onPrepareOptionsMenu(menu: android.view.Menu): Boolean {
+    val sync = menu.findItem(R.id.action_sync)
+    sync.isVisible = currentTab == Tab.DASHBOARD
+    sync.isEnabled = vm.actionsEnabled.value == true
+    return super.onPrepareOptionsMenu(menu)
+  }
+
+  override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+    return when (item.itemId) {
+      R.id.action_sync -> {
+        onSyncClicked()
+        true
+      }
+      else -> super.onOptionsItemSelected(item)
+    }
+  }
+
   private suspend fun runInitialFlow() {
     DailyUploadWorker.schedule(this)
 
@@ -146,7 +160,7 @@ class MainActivity : AppCompatActivity() {
   }
 
   private fun updateStatus(msg: String) {
-    binding.tvStatus.text = msg
+    vm.statusText.value = msg
   }
 
   private suspend fun ensureHealthConnectAndPermissions(
@@ -155,6 +169,8 @@ class MainActivity : AppCompatActivity() {
   ): Boolean {
     val status = HealthConnectClient.getSdkStatus(this)
     if (status != HealthConnectClient.SDK_AVAILABLE) {
+      vm.healthConnectText.value = "Health Connect: 필요"
+      vm.permissionsText.value = "권한: -"
       if (openInstallIfMissing) {
         updateStatus("Health Connect가 필요해. 설치 화면으로 이동할게")
         openHealthConnectInstallPage()
@@ -167,6 +183,8 @@ class MainActivity : AppCompatActivity() {
 
     val client = HealthConnectClient.getOrCreate(this)
     val granted = client.permissionController.getGrantedPermissions()
+    vm.healthConnectText.value = "Health Connect: 사용 가능"
+    vm.permissionsText.value = "권한: ${granted.intersect(permissions).size}/${permissions.size}"
     val missing = permissions.subtract(granted)
     if (missing.isEmpty()) {
       updateStatus("권한 확인 완료")
@@ -178,6 +196,19 @@ class MainActivity : AppCompatActivity() {
     updateActionButtonsState()
     requestPermissions.launch(permissions)
     return false
+  }
+
+  private suspend fun updateHealthConnectUi() {
+    val status = HealthConnectClient.getSdkStatus(this)
+    if (status != HealthConnectClient.SDK_AVAILABLE) {
+      vm.healthConnectText.value = "Health Connect: 필요"
+      vm.permissionsText.value = "권한: -"
+      return
+    }
+    val client = HealthConnectClient.getOrCreate(this)
+    val granted = withContext(Dispatchers.IO) { client.permissionController.getGrantedPermissions() }
+    vm.healthConnectText.value = "Health Connect: 사용 가능"
+    vm.permissionsText.value = "권한: ${granted.intersect(permissions).size}/${permissions.size}"
   }
 
   private fun openHealthConnectInstallPage() {
@@ -229,6 +260,7 @@ class MainActivity : AppCompatActivity() {
 
     if (payload.isFailure) {
       updateStatus("$reason 실패: 집계 오류")
+      vm.snackbarEvent.value = Event("$reason 실패: 집계 오류")
       return
     }
 
@@ -238,10 +270,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     updateStatus(if (uploaded) "$reason 성공: $day" else "$reason 실패: $day")
+    if (!uploaded) vm.snackbarEvent.value = Event("$reason 실패: 업로드 오류")
   }
 
   private suspend fun refreshDashboard() {
-    showDashboardState("대시보드 불러오는 중...")
+    vm.dashboardStateText.value = "대시보드 불러오는 중..."
 
     // Local sleep-first summary (doesn't rely on backend schema migration).
     runCatching { refreshLocalSleepSummary() }.onFailure {
@@ -254,25 +287,20 @@ class MainActivity : AppCompatActivity() {
 
     result.onSuccess { rows ->
       if (rows.isEmpty()) {
-        dashboardAdapter.submit(emptyList())
-        showDashboardState("데이터 없음 (health_daily 0건)")
+        vm.dashboardRows.value = emptyList()
+        vm.dashboardStateText.value = "데이터 없음"
       } else {
-        dashboardAdapter.submit(rows)
-        hideDashboardState()
+        vm.dashboardRows.value = rows
+        vm.dashboardStateText.value = ""
       }
+
+      val now = ZonedDateTime.now(ZoneId.systemDefault())
+      vm.lastSyncedText.value = String.format(Locale.US, "마지막 동기화: %02d:%02d", now.hour, now.minute)
     }.onFailure { e ->
-      dashboardAdapter.submit(emptyList())
-      showDashboardState("대시보드 오류: ${e.message ?: "알 수 없는 오류"}")
+      vm.dashboardRows.value = emptyList()
+      vm.dashboardStateText.value = "대시보드 오류: ${e.message ?: "알 수 없는 오류"}"
+      vm.snackbarEvent.value = Event("대시보드 동기화 실패: ${e.message ?: "알 수 없는 오류"}")
     }
-  }
-
-  private fun showDashboardState(message: String) {
-    binding.tvDashboardState.text = message
-    binding.tvDashboardState.visibility = android.view.View.VISIBLE
-  }
-
-  private fun hideDashboardState() {
-    binding.tvDashboardState.visibility = android.view.View.GONE
   }
 
   private fun beginBusy() {
@@ -287,9 +315,8 @@ class MainActivity : AppCompatActivity() {
 
   private fun updateActionButtonsState() {
     val enabled = busyCount == 0 && !permissionRequestInFlight
-    binding.btnGrant.isEnabled = enabled
-    binding.btnUpload.isEnabled = enabled
-    binding.btnRefreshDashboard.isEnabled = enabled
+    vm.actionsEnabled.value = enabled
+    invalidateOptionsMenu()
   }
 
   private suspend fun <T> withBusyTask(block: suspend () -> T): T {
@@ -448,27 +475,43 @@ class MainActivity : AppCompatActivity() {
   }
 
   private fun renderSleepSummaryLoading(message: String) {
-    binding.tvSleepSummaryTotal.text = message
-    binding.tvSleepSummaryWindow.text = "수면 구간: -"
-    binding.tvSleepSummaryStages.text = "수면 단계: -"
-    binding.tvSleepSummaryInsight.text = "인사이트: -"
+    vm.sleepSummary.value = SleepSummaryUiModel(
+      totalText = message,
+      windowText = "수면 구간: —",
+      qualityText = "—",
+      stages = null,
+      stagesLineText = "데이터 없음",
+      insightText = "—",
+    )
   }
 
   private suspend fun refreshLocalSleepSummary() {
     val status = HealthConnectClient.getSdkStatus(this)
     if (status != HealthConnectClient.SDK_AVAILABLE) {
-      binding.tvSleepSummaryTotal.text = "Health Connect 필요"
-      binding.tvSleepSummaryWindow.text = "수면 구간: -"
-      binding.tvSleepSummaryStages.text = "수면 단계: -"
-      binding.tvSleepSummaryInsight.text = "인사이트: Health Connect 설치/권한이 필요해"
+      vm.sleepSummary.value = SleepSummaryUiModel(
+        totalText = "Health Connect 필요",
+        windowText = "수면 구간: —",
+        qualityText = "설치/권한 필요",
+        stages = null,
+        stagesLineText = "데이터 없음",
+        insightText = "Health Connect 설치/권한이 필요해",
+      )
+      vm.activitySummary.value = ActivitySummaryUiModel("—", "—", "—", "—")
       return
     }
 
     val zone = ZoneId.systemDefault()
     val day = LocalDate.now(zone).minusDays(1)
-    binding.tvSleepSummaryTotal.text = "집계 중..."
+    vm.sleepSummary.value = (vm.sleepSummary.value ?: SleepSummaryUiModel(
+      totalText = "—",
+      windowText = "수면 구간: —",
+      qualityText = "—",
+      stages = null,
+      stagesLineText = "데이터 없음",
+      insightText = "—",
+    )).copy(totalText = "집계 중...")
 
-    val (sleep, bedtimeHint) = withContext(Dispatchers.IO) {
+    val (sleep, bedtimeHint, activity) = withContext(Dispatchers.IO) {
       val client = HealthConnectClient.getOrCreate(this@MainActivity)
       val granted = client.permissionController.getGrantedPermissions()
       val s = SleepDailyCollector.collectForDay(
@@ -479,16 +522,85 @@ class MainActivity : AppCompatActivity() {
         enableSleepVitals = true,
       )
       val hint = runCatching { SleepDailyCollector.collectBedtimeConsistencyHint(client, zone, days = 7) }.getOrNull()
-      Pair(s, hint)
+
+      val (start, end) = dayWindow(day, zone)
+      val steps = runCatching {
+        client.aggregate(
+          AggregateRequest(
+            metrics = setOf(StepsRecord.COUNT_TOTAL),
+            timeRangeFilter = TimeRangeFilter.between(start, end)
+          )
+        )[StepsRecord.COUNT_TOTAL]?.toLong()
+      }.getOrNull()
+
+      val activeCalories = runCatching {
+        client.aggregate(
+          AggregateRequest(
+            metrics = setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL),
+            timeRangeFilter = TimeRangeFilter.between(start, end)
+          )
+        )[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.inKilocalories
+      }.getOrNull()
+
+      val distanceKm = runCatching {
+        client.aggregate(
+          AggregateRequest(
+            metrics = setOf(DistanceRecord.DISTANCE_TOTAL),
+            timeRangeFilter = TimeRangeFilter.between(start, end)
+          )
+        )[DistanceRecord.DISTANCE_TOTAL]?.inMeters?.div(1000.0)
+      }.getOrNull()
+
+      val workoutsCount = runCatching {
+        client.readRecords(
+          androidx.health.connect.client.request.ReadRecordsRequest(
+            ExerciseSessionRecord::class,
+            timeRangeFilter = TimeRangeFilter.between(start, end),
+          )
+        ).records.size
+      }.getOrDefault(0)
+
+      Triple(s, hint, ActivitySummaryUiModel(
+        stepsText = steps?.toString() ?: "—",
+        distanceText = distanceKm?.let { String.format(Locale.US, "%.2fkm", it) } ?: "—",
+        caloriesText = activeCalories?.let { String.format(Locale.US, "%.0f kcal", it) } ?: "—",
+        workoutsText = workoutsCount.toString(),
+      ))
     }
 
     val totalMin = sleep.sleepMinutes
     val windowMin = sleep.sleepWindowMinutes
 
-    binding.tvSleepSummaryTotal.text = "총 수면: ${totalMin?.let { formatMinutes(it) } ?: "-"}"
-    binding.tvSleepSummaryWindow.text = formatSleepWindowLine(sleep.sleepStart, sleep.sleepEnd, windowMin)
-    binding.tvSleepSummaryStages.text = formatStagesLine(sleep.awakeMinutes, sleep.lightMinutes, sleep.deepMinutes, sleep.remMinutes)
-    binding.tvSleepSummaryInsight.text = buildInsightLine(sleep, bedtimeHint)
+    val totalText = totalMin?.let { formatMinutes(it) } ?: "데이터 없음"
+    val windowText = formatSleepWindowLine(sleep.sleepStart, sleep.sleepEnd, windowMin)
+    val stagesLine = formatStagesLine(sleep.awakeMinutes, sleep.lightMinutes, sleep.deepMinutes, sleep.remMinutes)
+    val insight = buildInsightLine(sleep, bedtimeHint).removePrefix("인사이트: ").trim()
+
+    val quality = when (totalMin ?: 0) {
+      in 0..359 -> "짧아"
+      in 360..419 -> "보통"
+      else -> "충분해"
+    }
+
+    val stagesUi =
+      if (sleep.deepMinutes != null && sleep.remMinutes != null && sleep.lightMinutes != null && sleep.awakeMinutes != null) {
+        SleepStagesUiModel(
+          deepMin = sleep.deepMinutes,
+          remMin = sleep.remMinutes,
+          lightMin = sleep.lightMinutes,
+          awakeMin = sleep.awakeMinutes,
+        )
+      } else null
+
+    vm.sleepSummary.value = SleepSummaryUiModel(
+      totalText = totalText,
+      windowText = windowText,
+      qualityText = quality,
+      stages = stagesUi,
+      stagesLineText = if (stagesUi == null) "데이터 없음" else stagesLine.removePrefix("수면 단계: ").trim(),
+      insightText = insight,
+    )
+    vm.activitySummary.value = activity
   }
 
   private fun formatMinutes(min: Int): String {
@@ -549,5 +661,112 @@ class MainActivity : AppCompatActivity() {
     if (hr != null) parts.add("수면 중 평균 심박 ${String.format(Locale.US, "%.0f", hr)}bpm")
 
     return "인사이트: " + parts.joinToString(" · ")
+  }
+
+  private fun setupBottomNav(savedInstanceState: Bundle?) {
+    if (savedInstanceState == null) {
+      selectTab(Tab.DASHBOARD, pushToBackStack = false)
+      binding.bottomNav.selectedItemId = R.id.nav_dashboard
+    } else {
+      // Keep the fragment manager state; just ensure toolbar title is correct.
+      currentTab = when (binding.bottomNav.selectedItemId) {
+        R.id.nav_trends -> Tab.TRENDS
+        R.id.nav_settings -> Tab.SETTINGS
+        else -> Tab.DASHBOARD
+      }
+      applyTopBarForTab(currentTab)
+      invalidateOptionsMenu()
+    }
+
+    binding.bottomNav.setOnItemSelectedListener { item ->
+      when (item.itemId) {
+        R.id.nav_dashboard -> {
+          selectTab(Tab.DASHBOARD, pushToBackStack = false)
+          true
+        }
+        R.id.nav_trends -> {
+          selectTab(Tab.TRENDS, pushToBackStack = false)
+          true
+        }
+        R.id.nav_settings -> {
+          selectTab(Tab.SETTINGS, pushToBackStack = false)
+          true
+        }
+        else -> false
+      }
+    }
+  }
+
+  private fun selectTab(tab: Tab, pushToBackStack: Boolean) {
+    currentTab = tab
+    applyTopBarForTab(tab)
+    invalidateOptionsMenu()
+
+    val tag = when (tab) {
+      Tab.DASHBOARD -> "dashboard"
+      Tab.TRENDS -> "trends"
+      Tab.SETTINGS -> "settings"
+    }
+
+    val fragment = supportFragmentManager.findFragmentByTag(tag) ?: when (tab) {
+      Tab.DASHBOARD -> DashboardFragment()
+      Tab.TRENDS -> TrendsFragment()
+      Tab.SETTINGS -> SettingsFragment()
+    }
+
+    val tx = supportFragmentManager.beginTransaction()
+
+    fun hideIfExists(t: String) {
+      supportFragmentManager.findFragmentByTag(t)?.let { tx.hide(it) }
+    }
+    hideIfExists("dashboard")
+    hideIfExists("trends")
+    hideIfExists("settings")
+
+    if (fragment.isAdded) {
+      tx.show(fragment)
+    } else {
+      tx.add(binding.fragmentContainer.id, fragment, tag)
+    }
+
+    if (pushToBackStack) tx.addToBackStack(tag)
+    tx.commit()
+  }
+
+  private fun applyTopBarForTab(tab: Tab) {
+    binding.topAppBar.title = when (tab) {
+      Tab.DASHBOARD -> "오늘의 수면"
+      Tab.TRENDS -> "트렌드"
+      Tab.SETTINGS -> "설정"
+    }
+  }
+
+  fun onGrantClicked() {
+    uiScope.launch {
+      withBusyTask {
+        val granted = ensureHealthConnectAndPermissions(autoFlow = false, openInstallIfMissing = true)
+        if (granted) onPermissionsReady()
+      }
+    }
+  }
+
+  fun onUploadYesterdayClicked() {
+    uiScope.launch {
+      withBusyTask {
+        val granted = ensureHealthConnectAndPermissions(autoFlow = false, openInstallIfMissing = true)
+        if (!granted) return@withBusyTask
+
+        val day = LocalDate.now(ZoneId.systemDefault()).minusDays(1)
+        uploadSingleDay(day, "수동 업로드")
+      }
+    }
+  }
+
+  fun onSyncClicked() {
+    uiScope.launch {
+      withBusyTask {
+        refreshDashboard()
+      }
+    }
   }
 }
