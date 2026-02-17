@@ -12,9 +12,34 @@
     android:orientation="vertical"
     android:padding="16dp">
 
+    <com.google.android.material.button.MaterialButtonToggleGroup
+      android:id="@+id/togglePeriod"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      app:selectionRequired="true"
+      app:singleSelection="true">
+
+      <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnPeriod7"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="7일" />
+
+      <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnPeriod30"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="30일" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
     <com.google.android.material.card.MaterialCardView
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
+      android:layout_marginTop="12dp"
       style="@style/Widget.Material3.CardView.Elevated">
 
       <LinearLayout
@@ -26,36 +51,24 @@
         <TextView
           android:layout_width="match_parent"
           android:layout_height="wrap_content"
-          android:text="이번 주"
+          android:text="수면 시간"
           android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
           android:textColor="?attr/colorOnSurface" />
 
         <TextView
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="12dp"
-          android:text="총 수면"
-          android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-          android:textColor="?attr/colorOnSurfaceVariant" />
-
-        <TextView
-          android:id="@+id/tvWeeklySleep"
+          android:id="@+id/tvDurationSummary"
           android:layout_width="match_parent"
           android:layout_height="wrap_content"
           android:layout_marginTop="6dp"
-          android:text="데이터 없음"
-          android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
-          android:textColor="?attr/colorOnSurface"
-          android:textStyle="bold" />
-
-        <TextView
-          android:id="@+id/tvWeeklyHint"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="10dp"
-          android:text="대시보드 동기화 후 지난 7일 합계를 보여줄게"
+          android:text="—"
           android:textAppearance="@style/TextAppearance.Material3.BodySmall"
           android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <com.openclaw.healthuploader.ui.chart.SimpleBarChartView
+          android:id="@+id/chartDuration"
+          android:layout_width="match_parent"
+          android:layout_height="120dp"
+          android:layout_marginTop="12dp" />
       </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -63,7 +76,7 @@
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
       android:layout_marginTop="12dp"
-      style="@style/Widget.Material3.CardView.Filled">
+      style="@style/Widget.Material3.CardView.Elevated">
 
       <LinearLayout
         android:layout_width="match_parent"
@@ -74,19 +87,34 @@
         <TextView
           android:layout_width="match_parent"
           android:layout_height="wrap_content"
-          android:text="v1 메모"
-          android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+          android:text="취침/기상"
+          android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
           android:textColor="?attr/colorOnSurface" />
 
         <TextView
+          android:id="@+id/tvTimeSummary"
           android:layout_width="match_parent"
           android:layout_height="wrap_content"
           android:layout_marginTop="8dp"
-          android:text="다음 버전에서 수면 시간대/일관성, 단계 비율 트렌드를 더 예쁘게 보여줄게."
+          android:text="—"
           android:textAppearance="@style/TextAppearance.Material3.BodySmall"
           android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <com.openclaw.healthuploader.ui.chart.BedWakeLineChartView
+          android:id="@+id/chartBedWake"
+          android:layout_width="match_parent"
+          android:layout_height="160dp"
+          android:layout_marginTop="12dp" />
       </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+      android:id="@+id/tvTrendsHint"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="12dp"
+      android:text="팁: 데이터가 비어있는 날은 그래프에서 자동으로 건너뛰어"
+      android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+      android:textColor="?attr/colorOnSurfaceVariant" />
   </LinearLayout>
 </androidx.core.widget.NestedScrollView>
-

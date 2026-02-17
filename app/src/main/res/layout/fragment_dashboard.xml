@@ -274,6 +274,181 @@
       </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <com.google.android.material.card.MaterialCardView
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="12dp"
+      style="@style/Widget.Material3.CardView.Elevated">
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:text="최근 7일 요약"
+          android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+          android:textColor="?attr/colorOnSurface" />
+
+        <TextView
+          android:id="@+id/tvWeeklyAvg"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="10dp"
+          android:text="평균 수면: —"
+          android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+          android:textColor="?attr/colorOnSurface" />
+
+        <TextView
+          android:id="@+id/tvWeeklyEfficiency"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="6dp"
+          android:text="수면 효율: —"
+          android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+          android:textColor="?attr/colorOnSurface" />
+
+        <TextView
+          android:id="@+id/tvWeeklyRegularity"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="6dp"
+          android:text="규칙성: —"
+          android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+          android:textColor="?attr/colorOnSurface" />
+
+        <TextView
+          android:id="@+id/tvWeeklyDebt"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="6dp"
+          android:text="수면 부채: —"
+          android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+          android:textColor="?attr/colorOnSurface" />
+
+        <TextView
+          android:id="@+id/tvWeeklyTrend"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="10dp"
+          android:text="추세: —"
+          android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+          android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <TextView
+          android:id="@+id/tvWeeklyData"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="4dp"
+          android:text="데이터: —"
+          android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+          android:textColor="?attr/colorOnSurfaceVariant" />
+      </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="12dp"
+      style="@style/Widget.Material3.CardView.Elevated">
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:gravity="center_vertical"
+          android:orientation="horizontal">
+
+          <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="내 최적 수면"
+            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+            android:textColor="?attr/colorOnSurface" />
+
+          <com.google.android.material.chip.Chip
+            android:id="@+id/chipOptimalConfidence"
+            style="@style/Widget.Material3.Chip.Assist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="신뢰도: —" />
+        </LinearLayout>
+
+        <TextView
+          android:id="@+id/tvOptimalTarget"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="10dp"
+          android:text="목표 수면: —"
+          android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+          android:textColor="?attr/colorOnSurface"
+          android:textStyle="bold" />
+
+        <TextView
+          android:id="@+id/tvOptimalBedtime"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="8dp"
+          android:text="취침 윈도우: —"
+          android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+          android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <TextView
+          android:id="@+id/tvOptimalWake"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="4dp"
+          android:text="기상 윈도우: —"
+          android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+          android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <TextView
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="12dp"
+          android:text="왜 이렇게 추천?"
+          android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+          android:textColor="?attr/colorOnSurface" />
+
+        <TextView
+          android:id="@+id/tvOptimalWhyShort"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="8dp"
+          android:maxLines="3"
+          android:text="—"
+          android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+          android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <TextView
+          android:id="@+id/tvOptimalWhyLong"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="8dp"
+          android:text="—"
+          android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+          android:textColor="?attr/colorOnSurfaceVariant"
+          android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+          android:id="@+id/btnOptimalWhyToggle"
+          style="@style/Widget.Material3.Button.TextButton"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="6dp"
+          android:text="자세히" />
+      </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
     <TextView
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
@@ -453,4 +628,3 @@
       android:layout_height="14dp" />
   </LinearLayout>
 </androidx.core.widget.NestedScrollView>
-

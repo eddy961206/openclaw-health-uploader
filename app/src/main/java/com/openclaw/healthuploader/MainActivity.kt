@@ -19,6 +19,7 @@ import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.openclaw.healthuploader.analytics.SleepInsightsAnalytics
 import com.openclaw.healthuploader.databinding.ActivityMainBinding
 import com.openclaw.healthuploader.ui.DashboardFragment
 import com.openclaw.healthuploader.ui.SettingsFragment
@@ -37,7 +38,10 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import java.util.Locale
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
 
@@ -45,7 +49,7 @@ class MainActivity : AppCompatActivity() {
   private val uiScope = CoroutineScope(Dispatchers.Main)
   private lateinit var vm: MainViewModel
   private val dashboardClient = SupabaseDashboardClient()
-  private val prefs by lazy { getSharedPreferences(PREFS_NAME, MODE_PRIVATE) }
+  private val prefs by lazy { UserPreferences.prefs(this) }
 
   private val permissions = requiredPermissions
 
@@ -83,6 +87,11 @@ class MainActivity : AppCompatActivity() {
 
     renderSleepSummaryLoading("대기 중...")
     setupBottomNav(savedInstanceState)
+
+    // Load persisted preference and keep insights derived from fetched rows up-to-date.
+    vm.targetSleepMinutes.value = UserPreferences.getTargetSleepMinutes(prefs)
+    vm.dashboardRows.observe(this) { recomputeSleepInsights(it, vm.targetSleepMinutes.value ?: UserPreferences.DEFAULT_TARGET_SLEEP_MINUTES) }
+    vm.targetSleepMinutes.observe(this) { recomputeSleepInsights(vm.dashboardRows.value.orEmpty(), it ?: UserPreferences.DEFAULT_TARGET_SLEEP_MINUTES) }
 
     vm.snackbarEvent.observe(this) { e ->
       val msg = e?.getContentIfNotHandled() ?: return@observe
@@ -458,7 +467,6 @@ class MainActivity : AppCompatActivity() {
 
   companion object {
     private const val TAG = "MainActivity"
-    private const val PREFS_NAME = "health_uploader_prefs"
     private const val PREF_AUTO_PERMISSION_FLOW_STARTED = "auto_permission_flow_started"
     const val EXTRA_SKIP_AUTO_FLOW = "skip_auto_flow"
 
@@ -607,6 +615,71 @@ class MainActivity : AppCompatActivity() {
     val h = min / 60
     val m = min % 60
     return if (h > 0) "${h}시간 ${m}분" else "${m}분"
+  }
+
+  private fun recomputeSleepInsights(rows: List<HealthDailyRow>, targetSleepMin: Int) {
+    val zone = ZoneId.systemDefault()
+    val result = SleepInsightsAnalytics.compute(rows = rows, zone = zone, targetSleepMin = targetSleepMin)
+
+    val weekly = result.weekly
+    val avgSleep = weekly.avgSleepMin?.let { SleepInsightsAnalytics.formatMinutesKo(it) } ?: "데이터 없음"
+    val eff = weekly.avgEfficiencyPct?.let { "${it}%" } ?: "-"
+
+    val reg = if (weekly.regularityScore != null && weekly.bedtimeStdDevMin != null && weekly.wakeStdDevMin != null) {
+      val b = weekly.bedtimeStdDevMin.roundToInt()
+      val w = weekly.wakeStdDevMin.roundToInt()
+      "${weekly.regularityScore}점 (취침±${b}분, 기상±${w}분)"
+    } else {
+      "데이터 부족"
+    }
+
+    val debt = weekly.sleepDebtMin?.let { SleepInsightsAnalytics.formatMinutesKo(it) } ?: "-"
+
+    fun slopeText(label: String, slope: Double?): String {
+      if (slope == null) return "$label -"
+      val rounded = slope.roundToInt()
+      if (abs(rounded) <= 1) return "$label 보합"
+      val sign = if (rounded > 0) "+" else ""
+      return "$label ${sign}${rounded}분/일"
+    }
+
+    val trendLine = buildString {
+      append("추세(7일): ")
+      append(slopeText("수면", weekly.durationSlopeMinPerDay))
+      append(", ")
+      append(slopeText("취침", weekly.bedtimeSlopeMinPerDay))
+      append(", ")
+      append(slopeText("기상", weekly.wakeSlopeMinPerDay))
+    }
+
+    vm.weeklyInsights.value = WeeklyInsightsUiModel(
+      avgSleepText = "평균 수면: $avgSleep",
+      efficiencyText = "수면 효율: $eff",
+      regularityText = "규칙성: $reg",
+      debtText = "수면 부채(목표 ${SleepInsightsAnalytics.formatMinutesKo(targetSleepMin)}): $debt",
+      trendText = trendLine,
+      dataText = "데이터: ${weekly.daysWithSleep}/7일 기준",
+    )
+
+    val rec = result.recommendation
+    val targetText = rec.targetMin?.let { SleepInsightsAnalytics.formatMinutesKo(it) } ?: "—"
+    val bedtimeText = rec.bedtimeWindow?.let { SleepInsightsAnalytics.formatWindow(it) } ?: "—"
+    val wakeText = rec.wakeWindow?.let { SleepInsightsAnalytics.formatWindow(it) } ?: "—"
+
+    val confidenceText = when (rec.confidence) {
+      SleepInsightsAnalytics.ConfidenceLevel.HIGH -> "높음"
+      SleepInsightsAnalytics.ConfidenceLevel.MID -> "중간"
+      SleepInsightsAnalytics.ConfidenceLevel.LOW -> "낮음"
+    }
+
+    vm.optimalSleep.value = OptimalSleepUiModel(
+      targetDurationText = "목표 수면: $targetText",
+      bedtimeWindowText = "취침 윈도우: $bedtimeText",
+      wakeWindowText = "기상 윈도우: $wakeText",
+      confidenceText = "신뢰도: $confidenceText",
+      whyShort = rec.whyShort,
+      whyLong = rec.whyLong,
+    )
   }
 
   private fun formatSleepWindowLine(start: Instant?, end: Instant?, windowMin: Int?): String {

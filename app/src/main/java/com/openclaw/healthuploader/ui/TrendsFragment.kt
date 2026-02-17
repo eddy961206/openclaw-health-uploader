@@ -20,15 +20,61 @@ class TrendsFragment : Fragment(R.layout.fragment_trends) {
     _binding = FragmentTrendsBinding.bind(view)
 
     vm.dashboardRows.observe(viewLifecycleOwner) { rows ->
-      val last7 = rows.take(7)
-      val totalMin = last7.sumOf { (it.sleepMinutes ?: it.sleepDurationMinutes) ?: 0 }
-      if (totalMin <= 0) {
-        binding.tvWeeklySleep.text = "데이터 없음"
-        binding.tvWeeklyHint.text = "대시보드 동기화 후 지난 7일 합계를 보여줄게"
-      } else {
-        binding.tvWeeklySleep.text = formatMinutes(totalMin)
-        binding.tvWeeklyHint.text = "지난 7일 총 수면(대시보드 기준)이야"
+      // NOTE: fragment_trends.xml no longer has tvWeeklySleep/tvWeeklyHint.
+      // Keep this screen focused on charts + summaries.
+
+      val periodDays = if (binding.togglePeriod.checkedButtonId == R.id.btnPeriod30) 30 else 7
+      val slice = rows.take(periodDays)
+
+      val sleepMins = slice.map { (it.sleepMinutes ?: it.sleepDurationMinutes) }
+      val validSleep = sleepMins.filterNotNull().filter { it > 0 }
+
+      if (validSleep.isEmpty()) {
+        binding.tvDurationSummary.text = "데이터 없음"
+        binding.tvTimeSummary.text = "대시보드 동기화 후 지난 ${periodDays}일 추세를 보여줄게"
+        binding.chartDuration.setData(emptyList())
+        binding.chartBedWake.setData(emptyList(), emptyList())
+        return@observe
       }
+
+      val avg = (validSleep.sum().toDouble() / validSleep.size).toInt()
+      binding.tvDurationSummary.text = "평균: ${formatMinutes(avg)} · 합계: ${formatMinutes(validSleep.sum())}"
+
+      // Duration bars (minutes)
+      binding.chartDuration.setData(sleepMins.map { it })
+
+      // Bed/Wake trends (minutes-of-day)
+      fun minutesOfDayFromIso(iso: String?): Int? {
+        if (iso.isNullOrBlank()) return null
+        return try {
+          val zdt = java.time.ZonedDateTime.parse(iso)
+          zdt.hour * 60 + zdt.minute
+        } catch (_: Exception) {
+          try {
+            val inst = java.time.Instant.parse(iso)
+            val zdt = java.time.ZonedDateTime.ofInstant(inst, java.time.ZoneId.systemDefault())
+            zdt.hour * 60 + zdt.minute
+          } catch (_: Exception) {
+            null
+          }
+        }
+      }
+
+      val bedtimes = slice.map { r -> minutesOfDayFromIso(r.sleepStart) }
+      val wakes = slice.map { r -> minutesOfDayFromIso(r.sleepEnd) }
+      binding.chartBedWake.setData(bedtimes, wakes)
+
+      binding.tvTimeSummary.text = if (bedtimes.all { it == null } || wakes.all { it == null }) {
+        "취침/기상 시각 데이터가 없어서 그래프를 그릴 수 없어"
+      } else {
+        "취침/기상 추세는 ‘시각’ 기준이라 자정 넘김(야간)도 포함해 보여줘"
+      }
+    }
+
+    binding.togglePeriod.addOnButtonCheckedListener { _, checkedId, isChecked ->
+      if (!isChecked) return@addOnButtonCheckedListener
+      // Force rebind by re-setting the current rows.
+      vm.dashboardRows.value?.let { vm.dashboardRows.postValue(it) }
     }
   }
 

@@ -26,12 +26,33 @@ data class ActivitySummaryUiModel(
   val workoutsText: String,
 )
 
+data class WeeklyInsightsUiModel(
+  val avgSleepText: String,
+  val efficiencyText: String,
+  val regularityText: String,
+  val debtText: String,
+  val trendText: String,
+  val dataText: String,
+)
+
+data class OptimalSleepUiModel(
+  val targetDurationText: String,
+  val bedtimeWindowText: String,
+  val wakeWindowText: String,
+  val confidenceText: String,
+  val whyShort: String,
+  val whyLong: String?,
+)
+
 class MainViewModel : ViewModel() {
   val healthConnectText = MutableLiveData("Health Connect: 확인 중")
   val permissionsText = MutableLiveData("권한: -")
 
   val statusText = MutableLiveData("대기 중")
   val actionsEnabled = MutableLiveData(true)
+
+  // User preference (persisted via SharedPreferences)
+  val targetSleepMinutes = MutableLiveData(8 * 60)
 
   val lastSyncedText = MutableLiveData("마지막 동기화: -")
   val sleepSummary = MutableLiveData(
@@ -55,6 +76,28 @@ class MainViewModel : ViewModel() {
 
   val dashboardRows = MutableLiveData<List<HealthDailyRow>>(emptyList())
   val dashboardStateText = MutableLiveData("불러오는 중...")
+
+  val weeklyInsights = MutableLiveData(
+    WeeklyInsightsUiModel(
+      avgSleepText = "평균 수면: —",
+      efficiencyText = "수면 효율: —",
+      regularityText = "규칙성: —",
+      debtText = "수면 부채: —",
+      trendText = "추세: —",
+      dataText = "데이터: —",
+    )
+  )
+
+  val optimalSleep = MutableLiveData(
+    OptimalSleepUiModel(
+      targetDurationText = "목표 수면: —",
+      bedtimeWindowText = "취침 윈도우: —",
+      wakeWindowText = "기상 윈도우: —",
+      confidenceText = "신뢰도: —",
+      whyShort = "왜 이렇게 추천?: —",
+      whyLong = null,
+    )
+  )
 
   val snackbarEvent = MutableLiveData<Event<String>>()
 }

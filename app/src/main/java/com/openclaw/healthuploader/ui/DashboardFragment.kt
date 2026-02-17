@@ -20,6 +20,7 @@ class DashboardFragment : Fragment(R.layout.fragment_dashboard) {
 
   private val vm: MainViewModel by activityViewModels()
   private val adapter = HealthDailyAdapter()
+  private var optimalWhyExpanded = false
 
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
@@ -53,6 +54,44 @@ class DashboardFragment : Fragment(R.layout.fragment_dashboard) {
       val show = msg.isNotBlank()
       binding.tvRecentState.visibility = if (show) View.VISIBLE else View.GONE
       binding.tvRecentState.text = msg
+    }
+
+    vm.weeklyInsights.observe(viewLifecycleOwner) { m ->
+      binding.tvWeeklyAvg.text = m.avgSleepText
+      binding.tvWeeklyEfficiency.text = m.efficiencyText
+      binding.tvWeeklyRegularity.text = m.regularityText
+      binding.tvWeeklyDebt.text = m.debtText
+      binding.tvWeeklyTrend.text = m.trendText
+      binding.tvWeeklyData.text = m.dataText
+    }
+
+    binding.btnOptimalWhyToggle.setOnClickListener {
+      optimalWhyExpanded = !optimalWhyExpanded
+      binding.tvOptimalWhyLong.visibility = if (optimalWhyExpanded) View.VISIBLE else View.GONE
+      binding.btnOptimalWhyToggle.text = if (optimalWhyExpanded) "접기" else "자세히"
+    }
+
+    vm.optimalSleep.observe(viewLifecycleOwner) { m ->
+      binding.tvOptimalTarget.text = m.targetDurationText
+      binding.tvOptimalBedtime.text = m.bedtimeWindowText
+      binding.tvOptimalWake.text = m.wakeWindowText
+      binding.chipOptimalConfidence.text = m.confidenceText
+
+      binding.tvOptimalWhyShort.text = m.whyShort
+
+      val long = m.whyLong
+      val hasLong = !long.isNullOrBlank()
+      binding.tvOptimalWhyLong.text = long.orEmpty()
+      binding.btnOptimalWhyToggle.visibility = if (hasLong) View.VISIBLE else View.GONE
+
+      if (!hasLong) {
+        optimalWhyExpanded = false
+        binding.tvOptimalWhyLong.visibility = View.GONE
+        binding.btnOptimalWhyToggle.text = "자세히"
+      } else {
+        binding.tvOptimalWhyLong.visibility = if (optimalWhyExpanded) View.VISIBLE else View.GONE
+        binding.btnOptimalWhyToggle.text = if (optimalWhyExpanded) "접기" else "자세히"
+      }
     }
   }
 
@@ -91,4 +130,3 @@ class DashboardFragment : Fragment(R.layout.fragment_dashboard) {
     binding.tvAwakeValue.text = "${stages.awakeMin}분"
   }
 }
-
