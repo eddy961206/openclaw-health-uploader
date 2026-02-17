@@ -13,72 +13,64 @@
   <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:paddingHorizontal="8dp"
-    android:paddingVertical="10dp">
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:gravity="center_vertical"
+      android:orientation="horizontal">
+
+      <TextView
+        android:id="@+id/tvDay"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="2026-01-01"
+        android:textColor="#101828"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/tvSleepTotal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:text="7h 20m"
+        android:textColor="#101828"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+    </LinearLayout>
 
     <TextView
-      android:id="@+id/tvDay"
-      android:layout_width="0dp"
+      android:id="@+id/tvSleepWindow"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:layout_weight="1.5"
-      android:ellipsize="end"
-      android:maxLines="1"
-      android:text="2026-01-01"
-      android:textColor="#101828"
-      android:textSize="13sp"
-      android:textStyle="bold" />
+      android:layout_marginTop="6dp"
+      android:text="23:40 ~ 07:10 (7h 30m)"
+      android:textColor="#475467"
+      android:textSize="12sp" />
 
     <TextView
-      android:id="@+id/tvSteps"
-      android:layout_width="0dp"
+      android:id="@+id/tvSleepStages"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:layout_weight="1"
-      android:gravity="end"
-      android:text="0"
+      android:layout_marginTop="6dp"
+      android:text="깊 80 · 렘 90 · 얕 220 · 깸 30"
       android:textColor="#344054"
       android:textSize="12sp" />
 
     <TextView
-      android:id="@+id/tvDistance"
-      android:layout_width="0dp"
+      android:id="@+id/tvActivitySecondary"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:layout_weight="1"
-      android:gravity="end"
-      android:text="0.00"
-      android:textColor="#344054"
-      android:textSize="12sp" />
-
-    <TextView
-      android:id="@+id/tvCalories"
-      android:layout_width="0dp"
-      android:layout_height="wrap_content"
-      android:layout_weight="1"
-      android:gravity="end"
-      android:text="0"
-      android:textColor="#344054"
-      android:textSize="12sp" />
-
-    <TextView
-      android:id="@+id/tvWorkouts"
-      android:layout_width="0dp"
-      android:layout_height="wrap_content"
-      android:layout_weight="0.8"
-      android:gravity="end"
-      android:text="0"
-      android:textColor="#344054"
-      android:textSize="12sp" />
-
-    <TextView
-      android:id="@+id/tvSleep"
-      android:layout_width="0dp"
-      android:layout_height="wrap_content"
-      android:layout_weight="1"
-      android:gravity="end"
-      android:text="0"
-      android:textColor="#344054"
-      android:textSize="12sp" />
+      android:layout_marginTop="8dp"
+      android:text="걸음 5200 · 거리 3.2km · 칼로리 410 · 운동 1"
+      android:textColor="#667085"
+      android:textSize="11sp" />
   </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

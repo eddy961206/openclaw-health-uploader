@@ -5,7 +5,6 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
-import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -68,29 +67,17 @@ class DailyUploadWorker(
   ): JSONObject {
     val (start, end) = dayWindow(day, zone)
 
-    val sleepStart = day.minusDays(1).atTime(12, 0).atZone(zone).toInstant()
-    val sleepEnd = day.plusDays(1).atTime(12, 0).atZone(zone).toInstant()
-
-    val sleepSessions = client.readRecords(
-      ReadRecordsRequest(
-        SleepSessionRecord::class,
-        timeRangeFilter = TimeRangeFilter.between(sleepStart, sleepEnd),
-      )
-    ).records
-
-    val best = sleepSessions
-      .map { r ->
-        val ovStart = maxOf(r.startTime, start)
-        val ovEnd = minOf(r.endTime, end)
-        val overlap = (ovEnd.toEpochMilli() - ovStart.toEpochMilli()).coerceAtLeast(0)
-        Pair(r, overlap)
-      }
-      .maxByOrNull { it.second }
-      ?.first
-
-    val sleepDurationMin = best?.let {
-      ((it.endTime.toEpochMilli() - it.startTime.toEpochMilli()) / 60000).toInt()
-    }
+    val granted = client.permissionController.getGrantedPermissions()
+    val sleep = SleepDailyCollector.collectForDay(
+      client = client,
+      day = day,
+      zone = zone,
+      grantedPermissions = granted,
+      enableSleepVitals = true,
+    )
+    val sleepDurationMin = sleep.sleepWindowMinutes
+    val sleepStartIso = sleep.sleepStart?.toString()
+    val sleepEndIso = sleep.sleepEnd?.toString()
 
     val stepsAgg = client.aggregate(
       AggregateRequest(
@@ -126,9 +113,19 @@ class DailyUploadWorker(
 
     return JSONObject().apply {
       put("day", day.toString())
-      put("sleep_start", best?.startTime?.toString())
-      put("sleep_end", best?.endTime?.toString())
+      put("sleep_start", sleepStartIso)
+      put("sleep_end", sleepEndIso)
       put("sleep_duration_minutes", sleepDurationMin)
+      if (BuildConfig.SEND_SLEEP_V2_FIELDS) {
+        putIfNotNull("sleep_minutes", sleep.sleepMinutes)
+        putIfNotNull("sleep_awake_minutes", sleep.awakeMinutes)
+        putIfNotNull("sleep_light_minutes", sleep.lightMinutes)
+        putIfNotNull("sleep_deep_minutes", sleep.deepMinutes)
+        putIfNotNull("sleep_rem_minutes", sleep.remMinutes)
+        putIfNotNull("sleep_score", sleep.sleepScore)
+        putIfNotNull("sleep_avg_hr", sleep.avgHr)
+        putIfNotNull("sleep_spo2", sleep.spo2)
+      }
       put("steps", steps)
       put("active_calories", activeCalories)
       put("workouts_count", workouts.size)
@@ -136,7 +133,22 @@ class DailyUploadWorker(
       put("source", JSONObject().apply {
         put("tz", zone.id)
         put("collected_at", ZonedDateTime.now(zone).toInstant().toString())
-        put("note", "v0.2 auto worker daily aggregates")
+        put("note", "v0.9 sleep-first auto worker daily aggregates")
+        put(
+          "sleep_v2",
+          JSONObject().apply {
+            putIfNotNull("sleep_minutes", sleep.sleepMinutes)
+            putIfNotNull("sleep_awake_minutes", sleep.awakeMinutes)
+            putIfNotNull("sleep_light_minutes", sleep.lightMinutes)
+            putIfNotNull("sleep_deep_minutes", sleep.deepMinutes)
+            putIfNotNull("sleep_rem_minutes", sleep.remMinutes)
+            putIfNotNull("sleep_score", sleep.sleepScore)
+            putIfNotNull("sleep_avg_hr", sleep.avgHr)
+            putIfNotNull("sleep_spo2", sleep.spo2)
+            putIfNotNull("stage_records", sleep.debug.stageCount)
+            if (sleep.debug.stageTypes.isNotEmpty()) put("stage_types", sleep.debug.stageTypes.joinToString(","))
+          }
+        )
       })
     }
   }

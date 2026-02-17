@@ -25,6 +25,8 @@ android {
     buildConfigField("String", "INGEST_ENDPOINT", "\"${secrets.getProperty("INGEST_ENDPOINT", "")}\"")
     buildConfigField("String", "INGEST_SECRET", "\"${secrets.getProperty("INGEST_SECRET", "")}\"")
     buildConfigField("String", "SUPABASE_ANON_KEY", "\"${secrets.getProperty("SUPABASE_ANON_KEY", "")}\"")
+    // Safe rollout: keep false until backend `health_daily` has the v2 sleep columns.
+    buildConfigField("boolean", "SEND_SLEEP_V2_FIELDS", "${secrets.getProperty("SEND_SLEEP_V2_FIELDS", "false")}")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

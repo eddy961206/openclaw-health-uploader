@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -11,6 +12,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateRequest
@@ -31,6 +33,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -69,6 +72,7 @@ class MainActivity : AppCompatActivity() {
 
     binding.rvHealthDaily.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
     binding.rvHealthDaily.adapter = dashboardAdapter
+    renderSleepSummaryLoading("대기 중...")
 
     binding.btnGrant.setOnClickListener {
       uiScope.launch {
@@ -239,6 +243,11 @@ class MainActivity : AppCompatActivity() {
   private suspend fun refreshDashboard() {
     showDashboardState("대시보드 불러오는 중...")
 
+    // Local sleep-first summary (doesn't rely on backend schema migration).
+    runCatching { refreshLocalSleepSummary() }.onFailure {
+      Log.d(TAG, "local sleep summary failed: ${it.message}")
+    }
+
     val result = withContext(Dispatchers.IO) {
       runCatching { dashboardClient.fetchLatest30() }
     }
@@ -305,31 +314,17 @@ class MainActivity : AppCompatActivity() {
 
     val (start, end) = dayWindow(day, zone)
 
-    // Sleep: query a wider window to catch overnight sessions
-    val sleepStart = day.minusDays(1).atTime(12, 0).atZone(zone).toInstant()
-    val sleepEnd = day.plusDays(1).atTime(12, 0).atZone(zone).toInstant()
-
-    val sleepSessions = client.readRecords(
-      androidx.health.connect.client.request.ReadRecordsRequest(
-        SleepSessionRecord::class,
-        timeRangeFilter = TimeRangeFilter.between(sleepStart, sleepEnd),
-      )
-    ).records
-
-    // Pick the longest session that overlaps the day
-    val best = sleepSessions
-      .map { r ->
-        val ovStart = maxOf(r.startTime, start)
-        val ovEnd = minOf(r.endTime, end)
-        val overlap = (ovEnd.toEpochMilli() - ovStart.toEpochMilli()).coerceAtLeast(0)
-        Pair(r, overlap)
-      }
-      .maxByOrNull { it.second }
-      ?.first
-
-    val sleepDurationMin = best?.let {
-      ((it.endTime.toEpochMilli() - it.startTime.toEpochMilli()) / 60000).toInt()
-    }
+    val granted = client.permissionController.getGrantedPermissions()
+    val sleep = SleepDailyCollector.collectForDay(
+      client = client,
+      day = day,
+      zone = zone,
+      grantedPermissions = granted,
+      enableSleepVitals = true,
+    )
+    val sleepDurationMin = sleep.sleepWindowMinutes
+    val sleepStartIso = sleep.sleepStart?.toString()
+    val sleepEndIso = sleep.sleepEnd?.toString()
 
     // Aggregates
     val stepsAgg = client.aggregate(
@@ -368,9 +363,34 @@ class MainActivity : AppCompatActivity() {
       put("day", day.toString())
 
       // sleep
-      put("sleep_start", best?.startTime?.toString())
-      put("sleep_end", best?.endTime?.toString())
+      put("sleep_start", sleepStartIso)
+      put("sleep_end", sleepEndIso)
       put("sleep_duration_minutes", sleepDurationMin)
+      if (BuildConfig.SEND_SLEEP_V2_FIELDS) {
+        putIfNotNull("sleep_minutes", sleep.sleepMinutes)
+        putIfNotNull("sleep_awake_minutes", sleep.awakeMinutes)
+        putIfNotNull("sleep_light_minutes", sleep.lightMinutes)
+        putIfNotNull("sleep_deep_minutes", sleep.deepMinutes)
+        putIfNotNull("sleep_rem_minutes", sleep.remMinutes)
+        putIfNotNull("sleep_score", sleep.sleepScore)
+        putIfNotNull("sleep_avg_hr", sleep.avgHr)
+        putIfNotNull("sleep_spo2", sleep.spo2)
+      }
+      // v2 sleep fields are kept under source.sleep_v2 by default for backwards compatibility.
+      val sleepV2 = JSONObject().apply {
+        putIfNotNull("sleep_minutes", sleep.sleepMinutes)
+        putIfNotNull("sleep_awake_minutes", sleep.awakeMinutes)
+        putIfNotNull("sleep_light_minutes", sleep.lightMinutes)
+        putIfNotNull("sleep_deep_minutes", sleep.deepMinutes)
+        putIfNotNull("sleep_rem_minutes", sleep.remMinutes)
+        putIfNotNull("sleep_score", sleep.sleepScore)
+        putIfNotNull("sleep_avg_hr", sleep.avgHr)
+        putIfNotNull("sleep_spo2", sleep.spo2)
+        putIfNotNull("stage_records", sleep.debug.stageCount)
+        if (sleep.debug.stageTypes.isNotEmpty()) {
+          put("stage_types", sleep.debug.stageTypes.joinToString(","))
+        }
+      }
 
       // activity
       put("steps", steps)
@@ -382,7 +402,8 @@ class MainActivity : AppCompatActivity() {
       put("source", JSONObject().apply {
         put("tz", zone.id)
         put("collected_at", ZonedDateTime.now(zone).toInstant().toString())
-        put("note", "v0.1 health connect daily aggregates")
+        put("note", "v0.9 sleep-first aggregates")
+        put("sleep_v2", sleepV2)
       })
     }
   }
@@ -409,16 +430,124 @@ class MainActivity : AppCompatActivity() {
   }
 
   companion object {
+    private const val TAG = "MainActivity"
     private const val PREFS_NAME = "health_uploader_prefs"
     private const val PREF_AUTO_PERMISSION_FLOW_STARTED = "auto_permission_flow_started"
     const val EXTRA_SKIP_AUTO_FLOW = "skip_auto_flow"
 
+    val permSleepSession: String = HealthPermission.getReadPermission(SleepSessionRecord::class)
+    val permHeartRate: String = HealthPermission.getReadPermission(HeartRateRecord::class)
+
     val requiredPermissions = setOf(
-      HealthPermission.getReadPermission(SleepSessionRecord::class),
+      permSleepSession,
       HealthPermission.getReadPermission(StepsRecord::class),
       HealthPermission.getReadPermission(ExerciseSessionRecord::class),
       HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
       HealthPermission.getReadPermission(DistanceRecord::class),
     )
+  }
+
+  private fun renderSleepSummaryLoading(message: String) {
+    binding.tvSleepSummaryTotal.text = message
+    binding.tvSleepSummaryWindow.text = "수면 구간: -"
+    binding.tvSleepSummaryStages.text = "수면 단계: -"
+    binding.tvSleepSummaryInsight.text = "인사이트: -"
+  }
+
+  private suspend fun refreshLocalSleepSummary() {
+    val status = HealthConnectClient.getSdkStatus(this)
+    if (status != HealthConnectClient.SDK_AVAILABLE) {
+      binding.tvSleepSummaryTotal.text = "Health Connect 필요"
+      binding.tvSleepSummaryWindow.text = "수면 구간: -"
+      binding.tvSleepSummaryStages.text = "수면 단계: -"
+      binding.tvSleepSummaryInsight.text = "인사이트: Health Connect 설치/권한이 필요해"
+      return
+    }
+
+    val zone = ZoneId.systemDefault()
+    val day = LocalDate.now(zone).minusDays(1)
+    binding.tvSleepSummaryTotal.text = "집계 중..."
+
+    val (sleep, bedtimeHint) = withContext(Dispatchers.IO) {
+      val client = HealthConnectClient.getOrCreate(this@MainActivity)
+      val granted = client.permissionController.getGrantedPermissions()
+      val s = SleepDailyCollector.collectForDay(
+        client = client,
+        day = day,
+        zone = zone,
+        grantedPermissions = granted,
+        enableSleepVitals = true,
+      )
+      val hint = runCatching { SleepDailyCollector.collectBedtimeConsistencyHint(client, zone, days = 7) }.getOrNull()
+      Pair(s, hint)
+    }
+
+    val totalMin = sleep.sleepMinutes
+    val windowMin = sleep.sleepWindowMinutes
+
+    binding.tvSleepSummaryTotal.text = "총 수면: ${totalMin?.let { formatMinutes(it) } ?: "-"}"
+    binding.tvSleepSummaryWindow.text = formatSleepWindowLine(sleep.sleepStart, sleep.sleepEnd, windowMin)
+    binding.tvSleepSummaryStages.text = formatStagesLine(sleep.awakeMinutes, sleep.lightMinutes, sleep.deepMinutes, sleep.remMinutes)
+    binding.tvSleepSummaryInsight.text = buildInsightLine(sleep, bedtimeHint)
+  }
+
+  private fun formatMinutes(min: Int): String {
+    val h = min / 60
+    val m = min % 60
+    return if (h > 0) "${h}시간 ${m}분" else "${m}분"
+  }
+
+  private fun formatSleepWindowLine(start: Instant?, end: Instant?, windowMin: Int?): String {
+    if (start == null || end == null) return "수면 구간: -"
+    val zone = ZoneId.systemDefault()
+    val zs = ZonedDateTime.ofInstant(start, zone)
+    val ze = ZonedDateTime.ofInstant(end, zone)
+    val range = String.format(Locale.US, "%02d:%02d ~ %02d:%02d", zs.hour, zs.minute, ze.hour, ze.minute)
+    val w = windowMin?.let { formatMinutes(it) } ?: "-"
+    return "수면 구간: $range ($w)"
+  }
+
+  private fun formatStagesLine(awake: Int?, light: Int?, deep: Int?, rem: Int?): String {
+    if (awake == null && light == null && deep == null && rem == null) {
+      return "수면 단계: (단계 데이터 없음)"
+    }
+    val parts = mutableListOf<String>()
+    if (deep != null) parts.add("깊 ${formatMinutes(deep)}")
+    if (rem != null) parts.add("렘 ${formatMinutes(rem)}")
+    if (light != null) parts.add("얕 ${formatMinutes(light)}")
+    if (awake != null) parts.add("깸 ${formatMinutes(awake)}")
+    return "수면 단계: " + parts.joinToString(" · ")
+  }
+
+  private fun buildInsightLine(sleep: SleepDailyCollector.SleepDaily, bedtimeHint: String?): String {
+    val parts = mutableListOf<String>()
+
+    val sleepMin = sleep.sleepMinutes
+    val deep = sleep.deepMinutes
+    val rem = sleep.remMinutes
+    if (sleepMin != null && sleepMin > 0 && deep != null && rem != null) {
+      val deepPct = deep.toDouble() / sleepMin.toDouble()
+      val remPct = rem.toDouble() / sleepMin.toDouble()
+      when {
+        deepPct < 0.10 -> parts.add("깊은 수면 비율이 낮은 편이야")
+        deepPct > 0.35 -> parts.add("깊은 수면 비율이 높은 편이야")
+      }
+      when {
+        remPct < 0.15 -> parts.add("렘 수면 비율이 낮은 편이야")
+        remPct > 0.35 -> parts.add("렘 수면 비율이 높은 편이야")
+      }
+      if (parts.isEmpty()) parts.add("단계 밸런스가 무난해 보여")
+    } else if (sleep.sleepMinutes != null) {
+      parts.add("수면 단계가 없어 총 수면만 기준으로 보여줘")
+    } else {
+      parts.add("어제 수면 기록이 없거나 Health Connect에서 못 읽었어")
+    }
+
+    if (!bedtimeHint.isNullOrBlank()) parts.add(bedtimeHint)
+
+    val hr = sleep.avgHr
+    if (hr != null) parts.add("수면 중 평균 심박 ${String.format(Locale.US, "%.0f", hr)}bpm")
+
+    return "인사이트: " + parts.joinToString(" · ")
   }
 }

@@ -11,7 +11,7 @@
     android:id="@+id/tvTitle"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="헬스 업로더"
+    android:text="수면 대시보드"
     android:textColor="#101828"
     android:textSize="24sp"
     android:textStyle="bold" />
@@ -21,9 +21,73 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginTop="4dp"
-    android:text="Health Connect 데이터를 Supabase로 자동 동기화"
+    android:text="Health Connect 수면 중심 집계 + Supabase 업로드"
     android:textColor="#475467"
     android:textSize="13sp" />
+
+  <com.google.android.material.card.MaterialCardView
+    android:id="@+id/cardSleepSummary"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="12dp"
+    app:cardBackgroundColor="#FFFFFF"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
+    app:strokeColor="#E4E7EC"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical"
+      android:padding="14dp">
+
+      <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="수면 요약 (어제)"
+        android:textColor="#101828"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/tvSleepSummaryTotal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="총 수면: -"
+        android:textColor="#101828"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/tvSleepSummaryWindow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="수면 구간: -"
+        android:textColor="#475467"
+        android:textSize="13sp" />
+
+      <TextView
+        android:id="@+id/tvSleepSummaryStages"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="수면 단계: -"
+        android:textColor="#344054"
+        android:textSize="13sp" />
+
+      <TextView
+        android:id="@+id/tvSleepSummaryInsight"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="인사이트: -"
+        android:textColor="#667085"
+        android:textSize="12sp" />
+    </LinearLayout>
+  </com.google.android.material.card.MaterialCardView>
 
   <com.google.android.material.card.MaterialCardView
     android:layout_width="match_parent"
@@ -104,80 +168,18 @@
       <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="대시보드 (최신 30일)"
+        android:text="업로드 대시보드 (최신 30일)"
         android:textColor="#101828"
         android:textSize="16sp"
         android:textStyle="bold" />
 
-      <LinearLayout
+      <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:background="#F8FAFC"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="8dp"
-        android:paddingVertical="6dp">
-
-        <TextView
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1.5"
-          android:text="날짜"
-          android:textColor="#475467"
-          android:textSize="12sp"
-          android:textStyle="bold" />
-
-        <TextView
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:gravity="end"
-          android:text="걸음"
-          android:textColor="#475467"
-          android:textSize="12sp"
-          android:textStyle="bold" />
-
-        <TextView
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:gravity="end"
-          android:text="거리(km)"
-          android:textColor="#475467"
-          android:textSize="12sp"
-          android:textStyle="bold" />
-
-        <TextView
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:gravity="end"
-          android:text="칼로리"
-          android:textColor="#475467"
-          android:textSize="12sp"
-          android:textStyle="bold" />
-
-        <TextView
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="0.8"
-          android:gravity="end"
-          android:text="운동"
-          android:textColor="#475467"
-          android:textSize="12sp"
-          android:textStyle="bold" />
-
-        <TextView
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:gravity="end"
-          android:text="수면(분)"
-          android:textColor="#475467"
-          android:textSize="12sp"
-          android:textStyle="bold" />
-      </LinearLayout>
+        android:layout_marginTop="4dp"
+        android:text="수면이 먼저 보이도록 정리했고, 활동(걸음/칼로리/운동)은 아래에 작게 보여줘."
+        android:textColor="#475467"
+        android:textSize="12sp" />
 
       <TextView
         android:id="@+id/tvDashboardState"
